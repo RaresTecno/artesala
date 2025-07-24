@@ -1,103 +1,137 @@
-import Image from "next/image";
+/* Home page for ArteSala – improved minimal style */
 
-export default function Home() {
+import Link from 'next/link';
+// import Image from 'next/image';
+
+export default function HomePage() {
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
+    <>
+      {/* HERO */}
+      <section className="relative isolate flex min-h-[60vh] items-center justify-center overflow-hidden bg-black/90 text-orange-400">
+        {/* Background image – replace with real photo */}
+        {/* <Image
+          src="/artesala_logo2.png"
+          alt="ArteSala – espacio de ensayo"
+          width={200}
+          height={200}
           priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.js
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+          className="absolute w-1/2 -z-10 h-full object-cover opacity-50"
+        /> */}
+        <div className="max-w-3xl text-center px-6">
+          <h1 className="mb-4 font-heading text-4xl font-bold sm:text-5xl md:text-6xl">
+            Espacios flexibles para tus artes escénicas
+          </h1>
+          <p className="mx-auto mb-8 max-w-xl text-lg sm:text-xl text-orange-200">
+            Bienvenido a ArteSala, dos salas equipadas y económicas en Madrid para ensayar, enseñar y crear.
+          </p>
+          <Link
+            href="/reservar"
+            className="inline-block rounded bg-orange-500 px-6 py-3 text-sm font-semibold text-white transition hover:bg-orange-400"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+            Reservar ahora
+          </Link>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+      </section>
+
+      {/* PASOS – ahora en dos pasos */}
+      <section className="mx-auto max-w-6xl px-4 py-16">
+        <h2 className="mb-10 text-center text-2xl font-semibold text-black-500">
+          ¿Cómo funciona?
+        </h2>
+        <ol className="grid gap-8 sm:grid-cols-2">
+          {[
+            {
+              num: '1',
+              title: 'Reserva online',
+              text: 'Elige sala, fecha y hora directamente en el calendario.'
+            },
+            {
+              num: '2',
+              title: 'Paga y listo',
+              text: '¡Paga online y seguro y tu reserva queda confirmada!'
+            }
+          ].map(({ num, title, text }) => (
+            <li key={num} className="relative rounded border border-orange-200 p-6">
+              <span className="absolute -top-4 left-6 flex h-8 w-8 items-center justify-center rounded-full bg-orange-500 font-bold text-white">
+                {num}
+              </span>
+              <h3 className="mb-2 text-lg font-semibold text-black-400">{title}</h3>
+              <p className="text-sm text-grey-200/90">{text}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      {/* TESTIMONIOS */}
+      <section className="bg-zinc-900 py-16 text-orange-200">
+        <div className="mx-auto max-w-6xl px-4">
+          <h2 className="mb-10 text-center text-2xl font-semibold text-orange-500">
+            Lo que dicen nuestros clientes
+          </h2>
+          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              {
+                name: 'Teresa Ruiz Velasco',
+                quote:
+                  'Un espacio muy recomendable para ensayos: económico, limpio y con un trato impecable.'
+              },
+              {
+                name: 'Fábrica de Ninjas',
+                quote:
+                  'Muy acogedor, tranquilo para trabajar y el dueño es muy atento. ¡Muy recomendable!'
+              },
+              {
+                name: 'Marta Paúl',
+                quote:
+                  'Un espacio muy bien equipado. Julio pone todas las facilidades para que sea cómodo.'
+              },
+              {
+                name: 'Annika Pannito',
+                quote:
+                  'Ideal para clases de danza. Sala amplia y dueño siempre disponible. Lo recomiendo.'
+              },
+              {
+                name: 'Miss Teen España',
+                quote:
+                  'Excelente espacio para ensayar distintos eventos y con muchas comodidades.'
+              },
+              {
+                name: 'Naima Sahko',
+                quote:
+                  'Espacio amplio, impecable, buenas instalaciones y muy buen trato.'
+              }
+            ].map(({ name, quote }) => (
+              <figure
+                key={name}
+                className="rounded border border-orange-200 p-6 shadow-lg transition hover:scale-[1.02] hover:shadow-orange-500/20"
+              >
+                <blockquote className="mb-4 text-sm italic leading-relaxed">
+                  “{quote}”
+                </blockquote>
+                <figcaption className="text-right text-xs uppercase tracking-wide text-orange-400">
+                  — {name}
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CONTACTO / UBICACIÓN */}
+      <section className="mx-auto max-w-6xl px-4 py-16">
+        <h2 className="mb-4 text-center text-2xl font-semibold text-black-500">¿Dónde estamos?</h2>
+        <p className="mb-6 text-center text-grey-200">C/ Abejuela, 7 · 28047 Madrid · Metros: Carpetana / Carabanchel</p>
+        <div className="relative h-72 overflow-hidden rounded shadow-md">
+          <iframe
+            title="ArteSala ubicación"
+            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d1519.4127083559686!2d-3.7465625552751867!3d40.390561782248604!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0xd4189db67b86a53%3A0x32f396bf5aa3a8c6!2sARTESALA%20-%20Alquiler%20Espacio%20Multiusos!5e0!3m2!1ses!2ses!4v1750352489858!5m2!1ses!2ses&basemap=satellite"
+            className="absolute inset-0 h-full w-full border-0"
+            loading="lazy"
+            allowFullScreen
           />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+        </div>
+      </section>
+    </>
   );
 }
+
