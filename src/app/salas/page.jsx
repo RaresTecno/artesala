@@ -1,55 +1,8 @@
+// app/salas/page.jsx
 'use client';
 
-import { useEffect, useState } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
-
-// Componente reutilizable de galería con auto-rotación
-function Gallery({ imgs }) {
-  const [current, setCurrent] = useState(0);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrent(prev => (prev + 1) % imgs.length);
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [imgs.length]);
-
-  return (
-    <div className="space-y-2">
-      <div className="relative h-56 w-full sm:h-72">
-        <Image
-          src={imgs[current]}
-          alt={`Sala imagen ${current + 1}`}
-          fill
-          sizes="(min-width: 640px) 600px, 100vw"
-          className="object-cover object-center"
-          unoptimized
-        />
-      </div>
-      <div className="flex justify-center gap-2">
-        {imgs.map((src, idx) => (
-          <button
-            key={idx}
-            onClick={() => setCurrent(idx)}
-            className={`relative h-16 w-24 overflow-hidden rounded transition focus:outline-none ${
-              idx === current ? 'ring-2 ring-orange-500' : 'opacity-70 hover:opacity-100'
-            }`}
-          >
-            <Image
-              src={src}
-              alt={`Vista previa ${idx + 1}`}
-              fill
-              sizes="96px"
-              className="object-cover"
-              unoptimized
-            />
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
+import Gallery from './Gallery';
 
 export default function Page() {
   const salas = [
@@ -113,7 +66,9 @@ export default function Page() {
             key={id}
             className="overflow-hidden rounded-lg border border-orange-200/40 bg-black/70 shadow-xl shadow-orange-500/10 backdrop-blur-sm"
           >
+            {/* Usamos el Gallery actualizado con márgenes y animación */}
             <Gallery imgs={images} />
+
             <div className="space-y-4 p-6">
               <h2 className="text-2xl font-semibold text-orange-400">{title}</h2>
               <ul className="grid gap-1 text-sm leading-relaxed">
@@ -121,20 +76,16 @@ export default function Page() {
                   <li key={idx}>{feat}</li>
                 ))}
               </ul>
-              <Link href={link} className="inline-block rounded bg-orange-500 px-5 py-2 text-sm font-semibold text-white transition hover:bg-orange-400">
+              <Link
+                href={link}
+                className="inline-block rounded bg-orange-500 px-5 py-2 text-sm font-semibold text-white transition hover:bg-orange-400"
+              >
                 Reservar Sala {id}
               </Link>
             </div>
           </section>
         ))}
       </div>
-      <p className="mt-16 text-center text-sm">
-        ¿Dudas? Escríbenos a&nbsp;
-        <a href="mailto:artesalainfo@gmail.com" className="underline hover:text-orange-400">
-          artesalainfo@gmail.com
-        </a>
-        &nbsp;o por WhatsApp.
-      </p>
     </main>
   );
 }
