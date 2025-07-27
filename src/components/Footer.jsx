@@ -1,79 +1,101 @@
 import Link from 'next/link';
+import Image from 'next/image'; // Mejora: usa next/image para optimización de imágenes y lazy-loading
 import { Facebook, Instagram, Twitter, Youtube } from 'lucide-react';
+
+// Extraer datos de navegación y políticas evita recrear arrays en cada render
+const NAV_LINKS = [
+  { href: '/', label: 'Inicio' },
+  { href: '/reservar', label: 'Reservar' },
+  { href: '/calendarios', label: 'Calendarios' },
+  { href: '/actividades', label: 'Actividades' },
+];
+const POLICY_LINKS = [
+  { href: '/politica-privacidad', label: 'Política de Privacidad' },
+  { href: '/terminos-condiciones', label: 'Términos y Condiciones' },
+  { href: '/cookies', label: 'Política de Cookies' },
+];
+const SOCIAL_LINKS = [
+  { icon: Facebook, url: 'https://facebook.com/ArteSala', label: 'Facebook' },
+  { icon: Instagram, url: 'https://instagram.com/ArteSala', label: 'Instagram' },
+  { icon: Twitter, url: 'https://twitter.com/ArteSala', label: 'Twitter' },
+  { icon: Youtube, url: 'https://youtube.com/ArteSala', label: 'YouTube' },
+];
 
 export default function Footer() {
   return (
-    <footer className="bg-gray-800 text-white py-8">
-      <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-8">
-        {/* Empresa Info */}
+    <footer className="bg-zinc-900 text-gray-200">
+      <div className="max-w-7xl mx-auto px-6 md:px-8 py-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+        {/* Logo & Descripción */}
         <div>
-          <h3 className="text-xl font-semibold mb-2">ArteSala</h3>
-          <p className="text-sm">Tu espacio de danza y cultura en Madrid</p>
-          <p className="text-sm mt-2">Calle Falsa 123, Madrid</p>
-          <p className="text-sm">info@artesala.com | +34 600 000 000</p>
+          <Link href="/" className="flex items-center space-x-2" prefetch={false}>
+            {/* Actualiza el logo a artesala_logo2.png */}
+            <Image src="/artesala_logo2.png" alt="ArteSala Logo" width={110} height={64} />
+            {/* <span className="text-2xl font-bold">ArteSala</span> */}
+          </Link>
+          <p className="mt-4 text-sm leading-relaxed">
+            Espacios flexibles para tus artes escénicas en Madrid. Reserva tu sala y crea sin límites.
+          </p>
+        </div>
+        {/* Navegación */}
+        <div>
+          <h4 className="text-lg font-semibold mb-4">Navegación</h4>
+          <ul className="space-y-2 text-sm">
+            {NAV_LINKS.map(({ href, label }) => (
+              <li key={label}>
+                <Link href={href} className="hover:text-white transition-colors" prefetch={false}>
+                  {label}
+                </Link>
+              </li>
+            ))}
+          </ul>
         </div>
         {/* Políticas */}
         <div>
-          <h3 className="text-xl font-semibold mb-2">Políticas</h3>
-          <ul className="space-y-1 text-sm">
-            <li>
-              <Link href="/politica-privacidad" className="hover:underline">
-                Política de Privacidad
-              </Link>
-            </li>
-            <li>
-              <Link href="/terminos-condiciones" className="hover:underline">
-                Términos y Condiciones
-              </Link>
-            </li>
-            <li>
-              <Link href="/cookies" className="hover:underline">
-                Política de Cookies
-              </Link>
-            </li>
+          <h4 className="text-lg font-semibold mb-4">Políticas</h4>
+          <ul className="space-y-2 text-sm">
+            {POLICY_LINKS.map(({ href, label }) => (
+              <li key={label}>
+                <Link href={href} className="hover:text-white transition-colors" prefetch={false}>
+                  {label}
+                </Link>
+              </li>
+            ))}
           </ul>
         </div>
-        {/* Redes Sociales */}
+        {/* Contacto & Redes Sociales */}
         <div>
-          <h3 className="text-xl font-semibold mb-2">Síguenos</h3>
-          <div className="flex space-x-4">
-            <a
-              href="https://facebook.com/ArteSala"
-              aria-label="Facebook"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Facebook size={24} />
+          <h4 className="text-lg font-semibold mb-4">Contáctanos</h4>
+          <p className="text-sm leading-relaxed">
+            C/ Abejuela, 7<br />
+            28047 Madrid<br />
+            <a href="mailto:artesalainfo@gmail.com" className="hover:text-white transition-colors">
+              artesalainfo@gmail.com
             </a>
-            <a
-              href="https://instagram.com/ArteSala"
-              aria-label="Instagram"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Instagram size={24} />
+            <br />
+            <a href="tel:+34690822002" className="hover:text-white transition-colors">
+              +34 690 822 002
             </a>
-            <a
-              href="https://twitter.com/ArteSala"
-              aria-label="Twitter"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Twitter size={24} />
-            </a>
-            <a
-              href="https://youtube.com/ArteSala"
-              aria-label="YouTube"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Youtube size={24} />
-            </a>
+          </p>
+          <div className="mt-4 flex space-x-3">
+            {SOCIAL_LINKS.map(({ icon: Icon, url, label }) => (
+              <a
+                key={label}
+                href={url}
+                aria-label={label}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-2 bg-gray-800 rounded-full hover:bg-purple-600 transition-colors"
+              >
+                <Icon className="w-5 h-5" />
+              </a>
+            ))}
           </div>
         </div>
       </div>
-      <div className="mt-8 text-center text-sm border-t border-gray-700 pt-4">
-        © {new Date().getFullYear()} ArteSala. Todos los derechos reservados.
+      <div className="border-t border-gray-700">
+        <div className="max-w-7xl mx-auto px-6 md:px-8 py-4 text-center text-sm text-gray-500">
+          © {new Date().getFullYear()} ArteSala. Todos los derechos reservados.
+        </div>
       </div>
     </footer>
   );

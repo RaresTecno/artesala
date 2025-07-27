@@ -71,7 +71,7 @@ fetchSalas()
   .catch(err => {
     console.error('Falló la consulta:', err)
   })
-  
+
 export default function HomePage() {
   return (
     <>
@@ -91,11 +91,11 @@ export default function HomePage() {
           className="absolute w-1/2 -z-10 h-full object-cover opacity-50"
         /> */}
         <div className="max-w-3xl text-center px-6">
-          <h1 className="mb-4 font-heading text-4xl font-bold sm:text-5xl md:text-6xl">
-            Espacios flexibles para tus artes escénicas
+          <h1 className="mb-4 font-heading text-4xl font-bold sm:text-5xl md:text-9xl">
+            ArteSala
           </h1>
           <p className="mx-auto mb-8 max-w-xl text-lg sm:text-xl text-orange-200">
-            Bienvenido a ArteSala, dos salas equipadas y económicas en Madrid para ensayar, enseñar y crear.
+            ArteSala, dos salas equipadas y económicas en Madrid para ensayar, enseñar y crear.
           </p>
           <Link
             href="/salas"
@@ -106,12 +106,24 @@ export default function HomePage() {
         </div>
       </section>
 
+      <section className="relative isolate flex items-center justify-center
+    overflow-hidden">
+        <div className="max-w-6xl px-6 py-10">
+          <h2 className="mb-4 font-heading text-4xl font-bold sm:text-5xl md:text-6xl">
+            Nuestro servicio
+          </h2>
+          <p className="text-2xl">
+            ¿Buscas un espacio para ensayar, dar clases, grabar vídeos o montar tu evento? Todas nuestras salas cuentan con aire acondicionado, espejos, suelo de tarima y están totalmente equipadas. Están en el centro de Madrid y puedes reservarlas por horas con total flexibilidad. Buen ambiente, comodidad y todo lo que necesitas para bailar o crear a tu ritmo.
+          </p>
+        </div>
+      </section>
+
       {/* PASOS – ahora en dos pasos */}
-      <section className="mx-auto max-w-6xl px-4 py-16">
-        <h2 className="mb-10 text-center text-2xl font-semibold text-black-500">
+      <section className="mx-auto max-w-6xl px-4 pb-16">
+        <h2 className="mb-6 font-heading text-4xl font-bold sm:text-5xl md:text-3xl">
           ¿Cómo funciona?
         </h2>
-        <ol className="grid gap-8 sm:grid-cols-2">
+        <ol className="grid gap-8 sm:grid-cols-2 ">
           {[
             {
               num: '1',
@@ -133,6 +145,14 @@ export default function HomePage() {
             </li>
           ))}
         </ol>
+        <div className="w-[100%] flex aling-items justify-center mt-5">
+          <Link
+            href="/salas"
+            className="inline-flex items-center gap-2 rounded-2xl bg-[black] px-7 py-4 font-semibold text-white shadow-lg transition hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring focus-visible:ring-offset-2 focus-visible:ring-[#f17f2d] mb-4 md:mb-0"
+          >
+            Reserva ahora tu sala
+          </Link>
+        </div>
       </section>
 
       {/* TESTIMONIOS */}
