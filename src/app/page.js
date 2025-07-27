@@ -1,13 +1,86 @@
-/* Home page for ArteSala – improved minimal style */
+"use client";
 
-import Link from 'next/link';
-// import Image from 'next/image';
+import Head from "next/head";
+import Image from "next/image";
+import Link from "next/link";
+import { CalendarCheck2, CreditCard, Star } from "lucide-react";
+import { supabase } from "@/lib/supabaseClient";
 
+const testimonials = [
+  {
+    name: "Teresa Ruiz Velasco",
+    location: "Madrid",
+    avatar: "/usuario.webp", // sustituir por foto real o placeholder
+    quote:
+      "Un espacio muy recomendable para ensayos: económico, limpio y con un trato impecable.",
+  },
+  {
+    name: "Fábrica de Ninjas",
+    location: "Madrid",
+    avatar: "/usuario.webp",
+    quote:
+      "Muy acogedor, tranquilo para trabajar y el dueño es muy atento. ¡Muy recomendable!",
+  },
+  {
+    name: "Marta Paúl",
+    location: "Madrid",
+    avatar: "/usuario.webp",
+    quote:
+      "Un espacio muy bien equipado. Julio pone todas las facilidades para que sea cómodo.",
+  },
+  {
+    name: "Annika Pannito",
+    location: "Madrid",
+    avatar: "/usuario.webp",
+    quote:
+      "Ideal para clases de danza. Sala amplia y dueño siempre disponible. Lo recomiendo.",
+  },
+  {
+    name: "Miss Teen España",
+    location: "Madrid",
+    avatar: "/usuario.webp",
+    quote:
+      "Excelente espacio para ensayar distintos eventos y con muchas comodidades.",
+  },
+  {
+    name: "Naima Sahko",
+    location: "Madrid",
+    avatar: "/usuario.webp",
+    quote:
+      "Espacio amplio, impecable, buenas instalaciones y muy buen trato.",
+  },
+];
+
+async function fetchSalas() {
+  const { data, error } = await supabase
+    .from('salas')
+    .select('*')    // id, coste_hora
+  if (error) {
+    console.error('Error al cargar salas:', error)
+    return []
+  }
+  return data
+}
+
+fetchSalas()
+  .then(salas => {
+    console.log('Salas disponibles:', salas)
+    // Ejemplo de salida:
+    // [ { id: 1, coste_hora: '20.00' }, { id: 2, coste_hora: '25.00' } ]
+  })
+  .catch(err => {
+    console.error('Falló la consulta:', err)
+  })
+  
 export default function HomePage() {
   return (
     <>
       {/* HERO */}
-      <section className="relative isolate flex min-h-[60vh] items-center justify-center overflow-hidden bg-black/90 text-orange-400">
+      <section className=" relative isolate flex items-center justify-center
+    overflow-hidden bg-black/90 text-orange-400
+    min-h-[60vh] md:min-h-[70vh]
+    pt-24 sm:pt-32
+  ">
         {/* Background image – replace with real photo */}
         {/* <Image
           src="/artesala_logo2.png"
@@ -25,8 +98,8 @@ export default function HomePage() {
             Bienvenido a ArteSala, dos salas equipadas y económicas en Madrid para ensayar, enseñar y crear.
           </p>
           <Link
-            href="/reservar"
-            className="inline-block rounded bg-orange-500 px-6 py-3 text-sm font-semibold text-white transition hover:bg-orange-400"
+            href="/salas"
+            className="inline-flex items-center gap-2 rounded-2xl bg-[#f17f2d] px-7 py-4 font-semibold text-white shadow-lg transition hover:bg-[#f17f2d]/90 focus-visible:outline-none focus-visible:ring focus-visible:ring-offset-2 focus-visible:ring-[#f17f2d] mb-4 md:mb-0"
           >
             Reservar ahora
           </Link>
@@ -63,54 +136,41 @@ export default function HomePage() {
       </section>
 
       {/* TESTIMONIOS */}
-      <section className="bg-zinc-900 py-16 text-orange-200">
+      <section className="bg-zinc-900 py-20 text-orange-100">
         <div className="mx-auto max-w-6xl px-4">
-          <h2 className="mb-10 text-center text-2xl font-semibold text-orange-500">
+          <h2 className="mb-12 text-center text-3xl font-semibold text-[#f17f2d]">
             Lo que dicen nuestros clientes
           </h2>
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-            {[
-              {
-                name: 'Teresa Ruiz Velasco',
-                quote:
-                  'Un espacio muy recomendable para ensayos: económico, limpio y con un trato impecable.'
-              },
-              {
-                name: 'Fábrica de Ninjas',
-                quote:
-                  'Muy acogedor, tranquilo para trabajar y el dueño es muy atento. ¡Muy recomendable!'
-              },
-              {
-                name: 'Marta Paúl',
-                quote:
-                  'Un espacio muy bien equipado. Julio pone todas las facilidades para que sea cómodo.'
-              },
-              {
-                name: 'Annika Pannito',
-                quote:
-                  'Ideal para clases de danza. Sala amplia y dueño siempre disponible. Lo recomiendo.'
-              },
-              {
-                name: 'Miss Teen España',
-                quote:
-                  'Excelente espacio para ensayar distintos eventos y con muchas comodidades.'
-              },
-              {
-                name: 'Naima Sahko',
-                quote:
-                  'Espacio amplio, impecable, buenas instalaciones y muy buen trato.'
-              }
-            ].map(({ name, quote }) => (
+            {testimonials.map(({ name, location, avatar, quote }) => (
               <figure
                 key={name}
-                className="rounded border border-orange-200 p-6 shadow-lg transition hover:scale-[1.02] hover:shadow-orange-500/20"
+                className="flex flex-col gap-4 rounded-2xl border border-orange-200/30 bg-zinc-800 p-8 shadow transition hover:-translate-y-1 hover:shadow-lg"
               >
-                <blockquote className="mb-4 text-sm italic leading-relaxed">
+                <div className="flex items-center gap-4">
+                  <Image
+                    src={avatar}
+                    alt={`Foto de ${name}`}
+                    width={48}
+                    height={48}
+                    className="h-12 w-12 rounded-full object-cover"
+                  />
+                  <div>
+                    <p className="font-semibold text-[#f17f2d]">{name}</p>
+                    <p className="text-xs text-neutral-400">{location}</p>
+                  </div>
+                </div>
+                <blockquote className="text-sm leading-relaxed text-neutral-200">
                   “{quote}”
                 </blockquote>
-                <figcaption className="text-right text-xs uppercase tracking-wide text-orange-400">
-                  — {name}
-                </figcaption>
+                <div className="flex" aria-label="5 estrellas">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Star
+                      key={i}
+                      className="h-4 w-4 fill-yellow-400 text-yellow-400"
+                    />
+                  ))}
+                </div>
               </figure>
             ))}
           </div>

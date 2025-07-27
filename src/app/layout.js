@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import "./globals.css";
 
 import Nav from '@/components/Nav';
+import Footer from '@/components/Footer';
 
 export const metadata = {
   title: "Artesala",
@@ -14,6 +15,7 @@ export default function RootLayout({ children }) {
          <body cz-shortcut-listen="true" className="h-full flex flex-col" >
            <Nav />
            <main className="flex-1">{children}</main>
+           <Footer />
          </body>
        </html>
   );
