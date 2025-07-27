@@ -59,7 +59,7 @@ export default function Page() {
 
   return (
     <main className="mx-auto max-w-7xl px-4 pb-16 pt-24 text-orange-200">
-      <h1 className="mb-12 text-center text-4xl font-bold text-black">Nuestras Salas</h1>
+      <h1 className="mb-12 text-center text-6xl font-bold text-black underline">Nuestras Salas</h1>
       <div className="grid gap-12 lg:grid-cols-2">
         {salas.map(({ id, title, images, features, link }) => (
           <section

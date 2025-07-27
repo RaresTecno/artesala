@@ -137,7 +137,7 @@ export default function HomePage() {
             }
           ].map(({ num, title, text }) => (
             <li key={num} className="relative rounded border border-orange-200 p-6">
-              <span className="absolute -top-4 left-6 flex h-8 w-8 items-center justify-center rounded-full bg-orange-500 font-bold text-white">
+              <span className="absolute -top-4 left-6 flex h-8 w-8 items-center justify-center border-1 border-white rounded-full bg-orange-500 font-bold text-white">
                 {num}
               </span>
               <h3 className="mb-2 text-lg font-semibold text-black-400">{title}</h3>
