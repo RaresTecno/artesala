@@ -4,15 +4,12 @@ import React, { use, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import ReservaCalendar from '@/components/Calendar';
 import { supabase } from '@/lib/supabaseClient';
-import { signPayload } from '@/lib/redsys';
 
 export default function ReservaSalaPage({ params }) {
-  // Desenvuelve params antes de usar
   const { salaId: salaParam } = use(params);
   const salaId = parseInt(salaParam, 10);
   const router = useRouter();
 
-  // Estados de reserva
   const [selectedSlots, setSelectedSlots] = useState([]);
   const [form, setForm] = useState({
     nombre: '',
@@ -23,57 +20,47 @@ export default function ReservaSalaPage({ params }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
-  const [total, setTotal] = useState(0);
-  const [reservaId, setReservaId] = useState(null);
 
-  // Efecto para redirigir tras éxito
-  useEffect(() => {
-    if (!success) return;
-
-    // Preparamos payload con datos fijos y calculados
-    const payload = {
-      Ds_Merchant_Amount: String(Math.round(total * 100)),
-      Ds_Merchant_MerchantCode: '367598893',         // Tu código de comercio
-      Ds_Merchant_Currency: '978',                  // Euro
-      Ds_Merchant_TransactionType: '0',             // Pago estándar
-      Ds_Merchant_Order: String(reservaId),         // ID de la reserva
-      Ds_Merchant_Terminal: '1',
-      Ds_Merchant_MerchantURL: `${window.location.origin}/api/redsys/notify`,
-      Ds_Merchant_UrlOK: `${window.location.origin}/pago/exito`,
-      Ds_Merchant_UrlKO: `${window.location.origin}/pago/error`
-    };
-
-    // Firmamos payload
-    const { Ds_SignatureVersion, Ds_MerchantSignature } = signPayload(payload);
-    payload.Ds_SignatureVersion = Ds_SignatureVersion;
-    payload.Ds_MerchantSignature = Ds_MerchantSignature;
-
-    // Creamos y enviamos el formulario a Redsys
-    const formEl = document.createElement('form');
-    formEl.method = 'POST';
-    formEl.action = 'https://sis-t.redsys.es:25443/sis/realizarPago';
-    Object.entries(payload).forEach(([k, v]) => {
-      const inp = document.createElement('input');
-      inp.type = 'hidden';
-      inp.name = k;
-      inp.value = v;
-      formEl.appendChild(inp);
-    });
-    document.body.appendChild(formEl);
-    formEl.submit();
-  }, [success, total, reservaId]);
-
-  // Selección de franjas en el calendario
+  // Evita duplicados por franja horaria en distintos días
   const handleDateSelect = ({ start, end }) => {
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+
+    // Si no es el mismo día
+    const isSameDay =
+      startDate.getFullYear() === endDate.getFullYear() &&
+      startDate.getMonth() === endDate.getMonth() &&
+      startDate.getDate() === endDate.getDate();
+
+    if (!isSameDay) {
+      setError('No se puede seleccionar una franja que cruce entre días diferentes.');
+      return;
+    }
+
+    const newKey = `${startDate.getHours()}-${endDate.getHours()}`;
+    const exists = selectedSlots.some(slot => {
+      const s = new Date(slot.start);
+      const e = new Date(slot.end);
+      return `${s.getHours()}-${e.getHours()}` === newKey;
+    });
+
+    if (exists) {
+      setError('Ya has seleccionado una franja con ese horario en otro día.');
+      return;
+    }
+
+    setError(null); // Limpiar errores previos si todo va bien
     setSelectedSlots(prev => [...prev, { salaId, start, end }]);
   };
 
-  // Manejo de inputs de formulario
   const handleChange = e => {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  // Envío de la reserva y preparación del pago
+  const handleUnselect = index => {
+    setSelectedSlots(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async e => {
     e.preventDefault();
     if (!selectedSlots.length) {
@@ -83,7 +70,6 @@ export default function ReservaSalaPage({ params }) {
     setLoading(true);
     setError(null);
     try {
-      // 1) Obtener coste por hora
       const { data: salaData, error: salaErr } = await supabase
         .from('salas')
         .select('coste_hora')
@@ -91,17 +77,14 @@ export default function ReservaSalaPage({ params }) {
         .single();
       if (salaErr) throw salaErr;
 
-      // 2) Calcular total
       const calcTotal = selectedSlots.reduce(
         (sum, t) =>
           sum +
           ((new Date(t.end) - new Date(t.start)) / (1000 * 60 * 60)) *
-            salaData.coste_hora,
+          salaData.coste_hora,
         0
       );
-      setTotal(calcTotal);
 
-      // 3) Guardar reserva en Supabase
       const { data: reserva, error: resErr } = await supabase
         .from('reservas')
         .insert({
@@ -112,9 +95,7 @@ export default function ReservaSalaPage({ params }) {
         .select('id')
         .single();
       if (resErr) throw resErr;
-      setReservaId(reserva.id);
 
-      // 4) Guardar tramos reservados
       await supabase
         .from('tramos_reservados')
         .insert(
@@ -126,10 +107,10 @@ export default function ReservaSalaPage({ params }) {
           }))
         );
 
-      // 5) Marcamos éxito para disparar el efecto de redirección
       setSuccess(true);
     } catch (err) {
       setError(err.message || 'Error al procesar la reserva');
+    } finally {
       setLoading(false);
     }
   };
@@ -147,15 +128,20 @@ export default function ReservaSalaPage({ params }) {
           onDateSelect={handleDateSelect}
         />
       </div>
-
       {selectedSlots.length > 0 && (
         <div className="mb-8">
           <h2 className="font-semibold mb-2">Franjas seleccionadas:</h2>
           <ul className="list-disc pl-5 text-sm space-y-1">
             {selectedSlots.map((s, i) => (
-              <li key={i}>
+              <li key={i} className="flex items-center gap-2">
                 {new Date(s.start).toLocaleString()} —{' '}
                 {new Date(s.end).toLocaleString()}
+                <button
+                  onClick={() => handleUnselect(i)}
+                  className="ml-2 text-red-500 text-xs underline"
+                >
+                  Quitar
+                </button>
               </li>
             ))}
           </ul>
@@ -221,14 +207,14 @@ export default function ReservaSalaPage({ params }) {
             disabled={loading}
             className="w-full bg-orange-500 text-white py-2 rounded hover:bg-orange-400 transition disabled:opacity-50"
           >
-            {loading ? 'Procesando...' : 'Crear reserva y pagar'}
+            {loading ? 'Procesando...' : 'Crear reserva'}
           </button>
         </form>
       )}
 
       {success && (
         <div className="text-center text-green-600 text-lg">
-          Redirigiendo a pasarela de pago...
+          Reserva realizada con éxito.
         </div>
       )}
     </main>
