@@ -117,7 +117,7 @@ export default function ReservaSalaPage({ salaId }) {
   };
 
   return (
-    <main className="mx-auto w-[80vw] px-4 py-12">
+    <main className="mx-auto w-[100vw] lg:w-[80vw] px-4 py-12">
       <h1 className="text-3xl font-bold text-center mb-6">
         Reservar Sala {salaId}
       </h1>

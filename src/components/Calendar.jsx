@@ -1,15 +1,17 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import { supabase } from '@/lib/supabaseClient';
 
 export default function ReservaCalendar({ salaId, selectedSlots, onDateSelect }) {
+  const calendarRef = useRef(null);
   const [reservedSlots, setReservedSlots] = useState([]);
+  const todayStr = new Date().toISOString().split('T')[0];
 
-  // Carga los tramos ya reservados desde Supabase
+  // 1) Carga los tramos ya reservados desde Supabase
   useEffect(() => {
     supabase
       .from('tramos_reservados')
@@ -21,10 +23,26 @@ export default function ReservaCalendar({ salaId, selectedSlots, onDateSelect })
       });
   }, [salaId]);
 
-  // Calcula la fecha mínima seleccionable: ahora + 1 hora
+  // 2) Fecha mínima seleccionable: ahora + 1 hora
   const minSelectableDate = new Date(Date.now() + 60 * 60 * 1000);
 
-  // Evento de fondo para bloquear las horas de hoy hasta minSelectableDate
+  // 3) Responsive: cambia la vista según el ancho de ventana
+  const handleResize = () => {
+    const api = calendarRef.current?.getApi();
+    if (!api) return;
+    if (window.innerWidth < 768) {
+      api.changeView('timeGridCustom');
+    } else {
+      api.changeView('timeGridCustom');
+    }
+  };
+  useEffect(() => {
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // 4) Construye el array de eventos, incluyendo bloqueos y reservas
   const todayDate = minSelectableDate.toISOString().split('T')[0];
   const blockEarlyToday = {
     start: `${todayDate}T00:00:00`,
@@ -33,8 +51,6 @@ export default function ReservaCalendar({ salaId, selectedSlots, onDateSelect })
     backgroundColor: '#e5e7eb',
     overlap: false
   };
-
-  // Combina eventos de fondo (bloqueos y reservados) con selecciones del usuario
   const events = [
     blockEarlyToday,
     ...reservedSlots.map(slot => ({
@@ -56,7 +72,7 @@ export default function ReservaCalendar({ salaId, selectedSlots, onDateSelect })
       }))
   ];
 
-  // Impide seleccionar franjas bloqueadas o de reservas
+  // 5) Impide seleccionar franjas bloqueadas o pasadas
   const selectAllow = info => {
     if (info.start < minSelectableDate || info.end < minSelectableDate) return false;
     for (let slot of reservedSlots) {
@@ -73,53 +89,85 @@ export default function ReservaCalendar({ salaId, selectedSlots, onDateSelect })
     return true;
   };
 
-  const handleSelect = info => onDateSelect({ salaId, start: info.startStr, end: info.endStr });
+  const handleSelect = info => {
+    onDateSelect({ salaId, start: info.startStr, end: info.endStr });
+  };
 
   return (
-    <div className="mx-auto bg-white rounded-lg shadow-lg p-4">
-      <FullCalendar
-        plugins={[timeGridPlugin, interactionPlugin]}
-        initialView="timeGridWeek"
-        headerToolbar={{
-          left: 'prev,next today',
-          center: 'title',
-          right: 'timeGridWeek,timeGridDay'
-        }}
-        buttonText={{ today: 'Hoy', timeGridWeek: 'Semana', timeGridDay: 'Día' }}
-        locale="es"
+    <div className="mx-auto bg-white rounded-lg shadow-lg p-4 overflow-x-auto">
+      <div className="min-w-[600px]">
+        <FullCalendar
+          ref={calendarRef}
+          plugins={[timeGridPlugin, interactionPlugin]}
 
-        slotMinTime="07:00:00"
-        slotMaxTime="23:00:00"
+          // Vista custom de 7 días que arranca hoy
+          views={{
+            timeGridCustom: {
+              type: 'timeGrid',
+              duration: { days: 7 },
+              buttonText: 'Semana',
+            }
+          }}
+          initialView="timeGridCustom"
+          initialDate={todayStr}
+          windowResize={handleResize}
 
-        // <-- Estas son las claves -->
-        slotDuration="00:30:00"        // crea ranuras de 30 minutos
-        slotLabelInterval="00:30:00"   // muestra etiqueta cada 30 minutos
-        slotLabelFormat={{             // fuerza formato HH:mm (07:00, 07:30…)
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: false
-        }}
+          headerToolbar={{
+            left: 'prev,next today',
+            center: 'title',
+            right: 'timeGridCustom,timeGridDay'
+          }}
+          buttonText={{ today: 'Hoy', timeGridWeek: 'Semana', timeGridDay: 'Día' }}
+          locale="es"
 
-        allDaySlot={false}
-        selectable={true}
-        select={handleSelect}
-        selectAllow={selectAllow}
-        events={events}
-        height="auto"
+          // Horario de 07:00 a 23:00 en intervalos de 30min
+          slotMinTime="07:00:00"
+          slotMaxTime="23:00:00"
+          slotDuration="00:30:00"
+          slotLabelInterval="00:30:00"
+          slotLabelFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }}
 
-        /* Estilos con Tailwind */
-        buttonClassNames={[
-          'bg-orange-500', 'text-white', 'px-3', 'py-1',
-          'rounded-full', 'uppercase', 'text-xs', 'font-semibold',
-          'hover:bg-orange-600', 'transition'
-        ]}
-        titleClassNames={['text-center', 'text-lg', 'font-bold', 'text-gray-800']}
-        dayHeaderClassNames={() => ['bg-gray-100', 'text-gray-700', 'font-medium', 'border-b', 'border-gray-200']}
-        slotLabelClassNames={() => ['text-gray-500', 'font-medium']}
-        slotLaneClassNames={() => ['!border-l', '!border-gray-200']}
-        dayCellClassNames={() => ['!border', '!border-gray-200']}
-        eventClassNames={() => ['rounded', 'border', 'border-orange-500']}
-      />
+          // Abrevia cabeceras “lun 29”
+          dayHeaderFormat={{ weekday: 'short', day: 'numeric' }}
+
+          allDaySlot={false}
+          selectable={true}
+          select={handleSelect}
+          selectAllow={selectAllow}
+          events={events}
+          height="auto"
+
+          /* Tailwind classnames para personalizar */
+          className="fc-container"
+          contentClassNames={['fc-content']}
+          viewClassNames={['fc-view']}
+          buttonClassNames={[
+            'bg-orange-500','text-white','px-3','py-1',
+            'rounded-full','uppercase','text-xs','font-semibold',
+            'hover:bg-orange-600','transition'
+          ]}
+          titleClassNames={['text-center','text-lg','font-bold','text-gray-800']}
+          navLinkClassNames={() => ['underline','text-blue-600']}
+
+          dayHeaderClassNames={() => [
+            'bg-gray-100','border-b','border-gray-200',
+            'text-xs','sm:text-sm','sm:font-medium',
+            'whitespace-nowrap','px-2','py-1'
+          ]}
+          dayHeaderContentClassNames={() => [
+            'flex','justify-center','items-center',
+            'text-xs','sm:text-base'
+          ]}
+
+          slotLabelClassNames={() => [
+            'text-gray-400','text-[10px]','sm:text-[12px]','pr-1'
+          ]}
+          slotLaneClassNames={() => ['!border-l','!border-gray-200']}
+          dayCellClassNames={() => ['!border','!border-gray-200']}
+          eventClassNames={() => ['rounded','border','border-orange-500']}
+          moreLinkClassNames={() => ['cursor-pointer','text-sm']}
+        />
+      </div>
     </div>
   );
 }
