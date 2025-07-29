@@ -115,7 +115,7 @@ export default function ReservaCalendar({ salaId, selectedSlots, onDateSelect })
           headerToolbar={{
             left: 'prev,next today',
             center: 'title',
-            right: 'timeGridCustom,timeGridDay'
+            right: 'timeGridCustom'
           }}
           buttonText={{ today: 'Hoy', timeGridWeek: 'Semana', timeGridDay: 'Día' }}
           locale="es"
