@@ -129,7 +129,7 @@ export default function ReservaCalendar({ salaId, selectedSlots, onDateSelect })
 
           // Abrevia cabeceras “lun 29”
           dayHeaderFormat={{ weekday: 'short', day: 'numeric' }}
-
+ 
           allDaySlot={false}
           selectable={true}
           select={handleSelect}
