@@ -4,7 +4,6 @@ import Head from "next/head";
 import Image from "next/image";
 import Link from "next/link";
 import { CalendarCheck2, CreditCard, Star } from "lucide-react";
-import { supabase } from "@/lib/supabaseClient";
 
 const testimonials = [
   {
@@ -50,27 +49,6 @@ const testimonials = [
       "Espacio amplio, impecable, buenas instalaciones y muy buen trato.",
   },
 ];
-
-async function fetchSalas() {
-  const { data, error } = await supabase
-    .from('salas')
-    .select('*')    // id, coste_hora
-  if (error) {
-    console.error('Error al cargar salas:', error)
-    return []
-  }
-  return data
-}
-
-fetchSalas()
-  .then(salas => {
-    console.log('Salas disponibles:', salas)
-    // Ejemplo de salida:
-    // [ { id: 1, coste_hora: '20.00' }, { id: 2, coste_hora: '25.00' } ]
-  })
-  .catch(err => {
-    console.error('Falló la consulta:', err)
-  })
 
 export default function HomePage() {
   return (
