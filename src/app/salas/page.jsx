@@ -26,7 +26,7 @@ export default function Page() {
         'Aire acondicionado y calefacción',
         'Aforo recomendado: 20 personas',
       ],
-      link: '/reservas/1',
+      link: '/reservas/sala1',
     },
     {
       id: 2,
@@ -53,7 +53,7 @@ export default function Page() {
         'Equipo de sonido Bluetooth / minijack',
         'Aforo recomendado: 12 personas',
       ],
-      link: '/reservas/2',
+      link: '/reservas/sala2',
     },
   ];
 

@@ -5,9 +5,10 @@ import { useRouter } from 'next/navigation';
 import ReservaCalendar from '@/components/Calendar';
 import { supabase } from '@/lib/supabaseClient';
 
-export default function ReservaSalaPage({ params }) {
-  const { salaId: salaParam } = use(params);
-  const salaId = parseInt(salaParam, 10);
+export default function ReservaSalaPage({ salaId }) {
+    console.log(salaId)
+//   const { salaId: salaParam } = use(params);
+//   const salaId = parseInt(salaParam, 10);
   const router = useRouter();
 
   const [selectedSlots, setSelectedSlots] = useState([]);
