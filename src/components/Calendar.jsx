@@ -76,15 +76,30 @@ export default function ReservaCalendar({ salaId, selectedSlots, onDateSelect })
   const handleSelect = info => onDateSelect({ salaId, start: info.startStr, end: info.endStr });
 
   return (
-    <div className="w-full lg:w-[1200px] mx-auto bg-white rounded-lg shadow-lg p-4">
+    <div className="mx-auto bg-white rounded-lg shadow-lg p-4">
       <FullCalendar
         plugins={[timeGridPlugin, interactionPlugin]}
         initialView="timeGridWeek"
-        headerToolbar={{ left: 'prev,next today', center: 'title', right: 'timeGridWeek,timeGridDay' }}
+        headerToolbar={{
+          left: 'prev,next today',
+          center: 'title',
+          right: 'timeGridWeek,timeGridDay'
+        }}
         buttonText={{ today: 'Hoy', timeGridWeek: 'Semana', timeGridDay: 'Día' }}
         locale="es"
-        slotMinTime="07:00:00"  // Horario mínimo ajustado
-        slotMaxTime="23:00:00" // Horario máximo ajustado
+
+        slotMinTime="07:00:00"
+        slotMaxTime="23:00:00"
+
+        // <-- Estas son las claves -->
+        slotDuration="00:30:00"        // crea ranuras de 30 minutos
+        slotLabelInterval="00:30:00"   // muestra etiqueta cada 30 minutos
+        slotLabelFormat={{             // fuerza formato HH:mm (07:00, 07:30…)
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false
+        }}
+
         allDaySlot={false}
         selectable={true}
         select={handleSelect}
@@ -94,16 +109,16 @@ export default function ReservaCalendar({ salaId, selectedSlots, onDateSelect })
 
         /* Estilos con Tailwind */
         buttonClassNames={[
-          'bg-orange-500','text-white','px-3','py-1',
-          'rounded-full','uppercase','text-xs','font-semibold',
-          'hover:bg-orange-600','transition'
+          'bg-orange-500', 'text-white', 'px-3', 'py-1',
+          'rounded-full', 'uppercase', 'text-xs', 'font-semibold',
+          'hover:bg-orange-600', 'transition'
         ]}
-        titleClassNames={['text-center','text-lg','font-bold','text-gray-800']}
-        dayHeaderClassNames={() => ['bg-gray-100','text-gray-700','font-medium','border-b','border-gray-200']}
-        slotLabelClassNames={() => ['text-gray-500','font-medium']}
-        slotLaneClassNames={() => ['!border-l','!border-gray-200']}
-        dayCellClassNames={() => ['!border','!border-gray-200']}
-        eventClassNames={() => ['rounded','border','border-orange-500']}
+        titleClassNames={['text-center', 'text-lg', 'font-bold', 'text-gray-800']}
+        dayHeaderClassNames={() => ['bg-gray-100', 'text-gray-700', 'font-medium', 'border-b', 'border-gray-200']}
+        slotLabelClassNames={() => ['text-gray-500', 'font-medium']}
+        slotLaneClassNames={() => ['!border-l', '!border-gray-200']}
+        dayCellClassNames={() => ['!border', '!border-gray-200']}
+        eventClassNames={() => ['rounded', 'border', 'border-orange-500']}
       />
     </div>
   );
