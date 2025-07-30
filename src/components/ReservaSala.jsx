@@ -2,7 +2,7 @@
 
 import React, { use, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import ReservaCalendar from '@/components/Calendar';
+import Calendar from '@/components/Calendar';
 import { supabase } from '@/lib/supabaseClient';
 
 export default function ReservaSalaPage({ salaId }) {
@@ -123,7 +123,7 @@ export default function ReservaSalaPage({ salaId }) {
       </h1>
 
       <div className="mb-8">
-        <ReservaCalendar
+        <Calendar
           salaId={salaId}
           selectedSlots={selectedSlots}
           onDateSelect={handleDateSelect}
