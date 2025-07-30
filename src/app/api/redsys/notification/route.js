@@ -2,6 +2,7 @@
 // Endpoint que recibe la notificación "online" de Redsys (POST server‑to‑server)
 // Verifica la firma y, si el pago fue autorizado, escribe la reserva y tramos
 // en Supabase usando la SERVICE_ROLE_KEY.
+export const runtime = 'nodejs';
 
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';

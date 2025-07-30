@@ -1,5 +1,7 @@
 // app/api/redsys/route.js – firma 100 % compatible con guía Redsys
 // -------------------------------------------------------------------------
+export const runtime = 'nodejs';
+
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 
