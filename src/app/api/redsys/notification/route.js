@@ -1,17 +1,13 @@
 /*  app/api/redsys/notification/route.js  */
-export const runtime = 'edge';          // 👈 Cloudflare Pages Functions (Edge)
+export const runtime = 'edge';
 
 import { NextResponse } from 'next/server';
 import CryptoJS from 'crypto-js';
 import { createClient } from '@supabase/supabase-js';
 
-const {
-  REDSYS_SECRET_KEY,
-  SUPABASE_URL,
-  SUPABASE_SERVICE_ROLE_KEY
-} = process.env;
+const { REDSYS_SECRET_KEY } = process.env;
 
-/* ---------- Verificación de firma ---------- */
+/* ---------- Firma Redsys con crypto-js ---------- */
 function deriveKey(order) {
   const masterKey = CryptoJS.enc.Base64.parse(REDSYS_SECRET_KEY);
   let block = CryptoJS.enc.Utf8.parse(order);
@@ -29,51 +25,42 @@ function deriveKey(order) {
 
 function calcSignature(order, paramsB64) {
   const key = deriveKey(order);
-  return CryptoJS
-    .HmacSHA256(paramsB64, key)
-    .toString(CryptoJS.enc.Base64);
+  return CryptoJS.HmacSHA256(paramsB64, key).toString(CryptoJS.enc.Base64);
 }
-/* ------------------------------------------- */
-
-/* Supabase admin (service_role) */
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-  auth: { persistSession: false }
-});
+/* ----------------------------------------------- */
 
 export async function POST(request) {
   try {
-    /* Redsys envía x-www-form-urlencoded */
+    /* 1· Leer x-www-form-urlencoded de Redsys */
     const bodyText = await request.text();
     const qs = new URLSearchParams(bodyText);
-
     const paramsB64 = qs.get('Ds_MerchantParameters');
     const recvSig  = qs.get('Ds_Signature');
     if (!paramsB64 || !recvSig) return new NextResponse('ERROR', { status: 400 });
 
+    /* 2· Parsear y verificar firma */
     const params = JSON.parse(
       CryptoJS.enc.Utf8.stringify(CryptoJS.enc.Base64.parse(paramsB64))
     );
+    const { Ds_Order: order, Ds_Response: resp, Ds_MerchantData: extraJSON,
+            Ds_Amount: amountCents, Ds_AuthorisationCode: authCode } = params;
 
-    const {
-      Ds_Order: order,
-      Ds_Response: response,
-      Ds_MerchantData: extrasJSON,
-      Ds_Amount: amountCents,
-      Ds_AuthorisationCode: authCode
-    } = params;
+    if (calcSignature(order, paramsB64) !== recvSig)
+      return new NextResponse('ERROR', { status: 400 });
 
-    /* comprobar firma */
-    const localSig = calcSignature(order, paramsB64);
-    if (localSig !== recvSig) return new NextResponse('ERROR', { status: 400 });
+    if (parseInt(resp, 10) >= 100) return new NextResponse('OK'); // pago rechazado
 
-    /* 0-99 = autorizado */
-    if (parseInt(response, 10) >= 100) return new NextResponse('OK');
+    /* 3· Crear cliente Supabase AHORA (ya en runtime, con env vars presentes) */
+    const supabase = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY,
+      { auth: { persistSession: false } }
+    );
 
-    /* Datos extra que enviamos desde el front */
-    const extras = JSON.parse(extrasJSON || '{}');
-    const { salaId, selectedSlots = [], ...cust } = extras;
+    const { salaId, selectedSlots = [], ...cust } =
+      JSON.parse(extraJSON || '{}');
 
-    /* Insertar reserva */
+    /* 4· Insertar reserva */
     const { data: reserva, error: resErr } = await supabase
       .from('reservas')
       .insert({
@@ -87,10 +74,9 @@ export async function POST(request) {
       })
       .select('id')
       .single();
-
     if (resErr) throw resErr;
 
-    /* Insertar tramos */
+    /* 5· Insertar tramos */
     if (selectedSlots.length) {
       const rows = selectedSlots.map(t => ({
         reserva_id: reserva.id,
@@ -105,6 +91,6 @@ export async function POST(request) {
     return new NextResponse('OK');
   } catch (err) {
     console.error('Redsys notif error', err);
-    return new NextResponse('ERROR', { status: 500 });   // Redsys re-intentará
+    return new NextResponse('ERROR', { status: 500 });
   }
 }
