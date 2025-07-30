@@ -1,14 +1,12 @@
 'use client';
 
-import React, { use, useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Calendar from '@/components/Calendar';
 import { supabase } from '@/lib/supabaseClient';
 
 export default function ReservaSalaPage({ salaId }) {
-    console.log(salaId)
-//   const { salaId: salaParam } = use(params);
-//   const salaId = parseInt(salaParam, 10);
+  console.log(salaId);
   const router = useRouter();
 
   const [selectedSlots, setSelectedSlots] = useState([]);
@@ -22,12 +20,14 @@ export default function ReservaSalaPage({ salaId }) {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
 
-  // Evita duplicados por franja horaria en distintos días
+  // ────────────────────────────────────────────────────────────────
+  // Selección de franjas en el calendario
+  // ────────────────────────────────────────────────────────────────
   const handleDateSelect = ({ start, end }) => {
     const startDate = new Date(start);
     const endDate = new Date(end);
 
-    // Si no es el mismo día
+    // 1. impide rangos que crucen días distintos
     const isSameDay =
       startDate.getFullYear() === endDate.getFullYear() &&
       startDate.getMonth() === endDate.getMonth() &&
@@ -38,6 +38,7 @@ export default function ReservaSalaPage({ salaId }) {
       return;
     }
 
+    // 2. evita duplicados en distintos días con mismo tramo horario
     const newKey = `${startDate.getHours()}-${endDate.getHours()}`;
     const exists = selectedSlots.some(slot => {
       const s = new Date(slot.start);
@@ -50,27 +51,32 @@ export default function ReservaSalaPage({ salaId }) {
       return;
     }
 
-    setError(null); // Limpiar errores previos si todo va bien
+    setError(null);
     setSelectedSlots(prev => [...prev, { salaId, start, end }]);
   };
 
-  const handleChange = e => {
+  const handleChange = e =>
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
-  };
 
-  const handleUnselect = index => {
+  const handleUnselect = index =>
     setSelectedSlots(prev => prev.filter((_, i) => i !== index));
-  };
 
+  // ────────────────────────────────────────────────────────────────
+  // Submit
+  // ────────────────────────────────────────────────────────────────
   const handleSubmit = async e => {
     e.preventDefault();
+
     if (!selectedSlots.length) {
       setError('Debes seleccionar al menos un tramo.');
       return;
     }
+
     setLoading(true);
     setError(null);
+
     try {
+      // 1) Obtener coste/hora de la sala
       const { data: salaData, error: salaErr } = await supabase
         .from('salas')
         .select('coste_hora')
@@ -78,37 +84,51 @@ export default function ReservaSalaPage({ salaId }) {
         .single();
       if (salaErr) throw salaErr;
 
+      // 2) Calcular total
       const calcTotal = selectedSlots.reduce(
         (sum, t) =>
           sum +
           ((new Date(t.end) - new Date(t.start)) / (1000 * 60 * 60)) *
-          salaData.coste_hora,
+            salaData.coste_hora,
         0
       );
 
-      const { data: reserva, error: resErr } = await supabase
-        .from('reservas')
-        .insert({
-          ...form,
-          estado: 'pendiente',
-          total: calcTotal
+      // 3) Validar total > 0 €
+      const total = calcTotal;
+      if (total <= 0) {
+        setError('Importe incorrecto. Selecciona al menos 1 h de reserva.');
+        setLoading(false);
+        return;
+      }
+
+      // 4) Solicitar parámetros a Redsys
+      const res = await fetch('/api/redsys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: total,
+          description: `Reserva Sala ${salaId}`,
+          customerData: form,
+          extra: { salaId, selectedSlots }
         })
-        .select('id')
-        .single();
-      if (resErr) throw resErr;
+      });
+      if (!res.ok) throw new Error('Error generando pago');
+      const redsys = await res.json();
 
-      await supabase
-        .from('tramos_reservados')
-        .insert(
-          selectedSlots.map(t => ({
-            reserva_id: reserva.id,
-            sala_id: salaId,
-            inicio: t.start,
-            fin: t.end
-          }))
-        );
-
-      setSuccess(true);
+      // 5) Crear formulario oculto y redirigir
+      const formPay = document.createElement('form');
+      formPay.action = redsys.url;
+      formPay.method = 'POST';
+      Object.entries(redsys).forEach(([k, v]) => {
+        if (k === 'url') return;
+        const inp = document.createElement('input');
+        inp.type = 'hidden';
+        inp.name = k;
+        inp.value = v;
+        formPay.appendChild(inp);
+      });
+      document.body.appendChild(formPay);
+      formPay.submit();
     } catch (err) {
       setError(err.message || 'Error al procesar la reserva');
     } finally {
@@ -116,6 +136,9 @@ export default function ReservaSalaPage({ salaId }) {
     }
   };
 
+  // ────────────────────────────────────────────────────────────────
+  // Render
+  // ────────────────────────────────────────────────────────────────
   return (
     <main className="mx-auto w-[100vw] lg:w-[80vw] px-4 py-12">
       <h1 className="text-3xl font-bold text-center mb-6">
@@ -129,6 +152,7 @@ export default function ReservaSalaPage({ salaId }) {
           onDateSelect={handleDateSelect}
         />
       </div>
+
       {selectedSlots.length > 0 && (
         <div className="mb-8">
           <h2 className="font-semibold mb-2">Franjas seleccionadas:</h2>
@@ -208,7 +232,7 @@ export default function ReservaSalaPage({ salaId }) {
             disabled={loading}
             className="w-full bg-orange-500 text-white py-2 rounded hover:bg-orange-400 transition disabled:opacity-50"
           >
-            {loading ? 'Procesando...' : 'Crear reserva'}
+            {loading ? 'Procesando…' : 'Crear reserva'}
           </button>
         </form>
       )}
