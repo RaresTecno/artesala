@@ -2,20 +2,21 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import FullCalendar from '@fullcalendar/react';
+import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import { supabase } from '@/lib/supabaseClient';
 
 export default function ReservaCalendar({
   salaId,
-  selectedSlots = [],           // ← valor por defecto: opcional
-  onDateSelect,                  // ← opcional, se invoca con ?. más abajo
+  selectedSlots = [],
+  onDateSelect,
 }) {
   const calendarRef = useRef(null);
   const [reservedSlots, setReservedSlots] = useState([]);
   const todayStr = new Date().toISOString().split('T')[0];
 
-  // 1) Carga los tramos ya reservados desde Supabase
+  // 1) Cargar reservas existentes
   useEffect(() => {
     supabase
       .from('tramos_reservados')
@@ -27,26 +28,12 @@ export default function ReservaCalendar({
       });
   }, [salaId]);
 
-  // 2) Fecha mínima seleccionable: ahora + 1 hora
-  const minSelectableDate = new Date(Date.now() + 60 * 60 * 1000);
+  // 2) Mínimo seleccionable: ahora + 1h
+  // const minSelectableDate = new Date(Date.now() + 60 * 60 * 1000);
+  const minSelectableDate = new Date(Date.now());
 
-  // 3) Responsive: cambia la vista según el ancho de ventana (corrijo ramas)
-  // const handleResize = () => {
-  //   const api = calendarRef.current?.getApi();
-  //   if (!api) return;
-  //   if (window.innerWidth < 768) {
-  //     api.changeView('timeGridDay');
-  //   } else {
-  //     api.changeView('timeGridCustom');
-  //   }
-  // };
-  // useEffect(() => {
-  //   handleResize();
-  //   window.addEventListener('resize', handleResize);
-  //   return () => window.removeEventListener('resize', handleResize);
-  // }, []);
 
-  // 4) Construye el array de eventos, incluyendo bloqueos y reservas
+  // 3) Eventos: bloqueos, reservas existentes y tus selecciones
   const todayDate = minSelectableDate.toISOString().split('T')[0];
   const blockEarlyToday = {
     start: `${todayDate}T00:00:00`,
@@ -74,11 +61,16 @@ export default function ReservaCalendar({
         end: slot.end,
         backgroundColor: '#f59e0b',
         overlap: false,
+        classNames: ['pointer-events-none'], // evita bloquear el arrastre
       })),
   ];
 
-  // 5) Impide seleccionar franjas bloqueadas o pasadas
+  // 4) Permisos de selección
   const selectAllow = (info) => {
+    const api = calendarRef.current?.getApi();
+    // En vista mensual no permitimos arrastrar para seleccionar (se hace en Día)
+    if (api?.view?.type === 'dayGridMonth') return false;
+
     if (info.start < minSelectableDate || info.end < minSelectableDate) return false;
 
     for (let slot of reservedSlots) {
@@ -96,9 +88,17 @@ export default function ReservaCalendar({
     return true;
   };
 
+  // 5) Selección por arrastre (en Semana/Día)
   const handleSelect = (info) => {
-    // ← llamada segura: solo si el callback está definido
     onDateSelect?.({ salaId, start: info.startStr, end: info.endStr });
+  };
+
+  // 6) Click en día (en vista Mensual → cambia a Día)
+  const handleDateClick = (arg) => {
+    const api = calendarRef.current?.getApi();
+    if (api?.view?.type === 'dayGridMonth') {
+      api.changeView('timeGridDay', arg.date);
+    }
   };
 
   return (
@@ -106,20 +106,38 @@ export default function ReservaCalendar({
       <div className="min-w-[600px]">
         <FullCalendar
           ref={calendarRef}
-          plugins={[timeGridPlugin, interactionPlugin]}
+          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
           views={{
+            dayGridMonth: {
+              type: 'dayGrid',
+              buttonText: 'Mes',
+            },
             timeGridCustom: {
               type: 'timeGrid',
               duration: { days: 7 },
               buttonText: 'Semana',
             },
+            timeGridDay: {
+              type: 'timeGrid',
+              buttonText: 'Día',
+            },
           }}
           initialView="timeGridCustom"
           initialDate={todayStr}
-          // windowResize={handleResize}
-          headerToolbar={{ left: 'prev,next today', center: 'title', right: 'timeGridCustom' }}
-          buttonText={{ today: 'Hoy', timeGridWeek: 'Semana', timeGridDay: 'Día' }}
+          headerToolbar={{
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridCustom',
+          }}
+          buttonText={{
+            today: 'Hoy',
+            dayGridMonth: 'Mes',
+            timeGridCustom: 'Semana',
+            timeGridDay: 'Día',
+          }}
           locale="es"
+          navLinks={true}
+          dateClick={handleDateClick}
           slotMinTime="07:00:00"
           slotMaxTime="23:00:00"
           slotDuration="00:30:00"
@@ -128,6 +146,7 @@ export default function ReservaCalendar({
           dayHeaderFormat={{ weekday: 'short', day: 'numeric' }}
           allDaySlot={false}
           selectable={true}
+          // selectLongPressDelay={50} // opcional: mejora en móvil
           select={handleSelect}
           selectAllow={selectAllow}
           events={events}
@@ -149,7 +168,17 @@ export default function ReservaCalendar({
           ]}
           titleClassNames={['text-center', 'text-lg', 'font-bold', 'text-gray-800']}
           navLinkClassNames={() => ['underline', 'text-blue-600']}
-          dayHeaderClassNames={() => ['bg-gray-100', 'border-b', 'border-gray-200', 'text-xs', 'sm:text-sm', 'sm:font-medium', 'whitespace-nowrap', 'px-2', 'py-1']}
+          dayHeaderClassNames={() => [
+            'bg-gray-100',
+            'border-b',
+            'border-gray-200',
+            'text-xs',
+            'sm:text-sm',
+            'sm:font-medium',
+            'whitespace-nowrap',
+            'px-2',
+            'py-1',
+          ]}
           dayHeaderContentClassNames={() => ['flex', 'justify-center', 'items-center', 'text-xs', 'sm:text-base']}
           slotLabelClassNames={() => ['text-gray-400', 'text-[10px]', 'sm:text-[12px]', 'pr-1']}
           slotLaneClassNames={() => ['!border-l', '!border-gray-200']}
