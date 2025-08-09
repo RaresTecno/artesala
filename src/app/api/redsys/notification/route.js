@@ -7,7 +7,7 @@ import { NextResponse } from 'next/server';
 import CryptoJS from 'crypto-js';
 import { createClient } from '@supabase/supabase-js';
 
-/* ───────── Utilidades firma (Edge-safe) ───────── */
+/* ───────── Firma Redsys (Edge-safe) ───────── */
 function deriveKey(order) {
   const masterKey = CryptoJS.enc.Base64.parse(process.env.REDSYS_SECRET_KEY);
   const iv = CryptoJS.enc.Hex.parse('0000000000000000');
@@ -25,8 +25,11 @@ function calcSignature(order, paramsB64) {
 function toStdB64(s) {
   return s.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (s.length % 4)) % 4);
 }
+/* ──────────────────────────────────────────── */
+
 function parseMerchantData(input) {
   if (!input) return {};
+  // Puede venir en JSON plano o en Base64(JSON)
   try { return JSON.parse(input); } catch {}
   try {
     const asJson = CryptoJS.enc.Utf8.stringify(CryptoJS.enc.Base64.parse(input));
@@ -34,11 +37,12 @@ function parseMerchantData(input) {
   } catch { return {}; }
 }
 
-/* ───────── Lógica común ───────── */
+/* Lógica común (para POST y GET) */
 async function processNotification(paramsB64, sigGiven) {
   const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!process.env.REDSYS_SECRET_KEY || !SUPABASE_URL || !SERVICE_ROLE) {
+  const SRK = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!process.env.REDSYS_SECRET_KEY || !SUPABASE_URL || !SRK) {
     console.error('REDSYS NOTIFY: missing env vars');
     return new NextResponse('ERROR', { status: 500 });
   }
@@ -48,7 +52,7 @@ async function processNotification(paramsB64, sigGiven) {
     return new NextResponse('ERROR', { status: 400 });
   }
 
-  // Decodificar parámetros
+  // Decodificar parámetros Redsys
   const paramsJson = CryptoJS.enc.Utf8.stringify(CryptoJS.enc.Base64.parse(paramsB64));
   const params = JSON.parse(paramsJson);
 
@@ -56,7 +60,7 @@ async function processNotification(paramsB64, sigGiven) {
   const respCode = parseInt(params['Ds_Response'] ?? '999', 10);
   const amountCt = parseInt(params['Ds_Amount'] ?? '0', 10);
 
-  // Verificar firma (recibida url-safe)
+  // Verificación firma (la recibida está en Base64 url-safe)
   const expected = calcSignature(order, paramsB64);
   const givenStd = toStdB64(sigGiven);
   if (expected !== givenStd) {
@@ -66,39 +70,46 @@ async function processNotification(paramsB64, sigGiven) {
 
   console.log('REDSYS NOTIFY: hit + sig OK', { order, respCode, amountCt });
 
-  // Si no autorizado, OK y salir
+  // Solo seguimos si autorizado (0..99)
   if (!(respCode >= 0 && respCode <= 99)) {
-    console.log('REDSYS NOTIFY: payment not authorized', { order, respCode });
     return new NextResponse('OK');
   }
 
-  // MerchantData: cubrir variantes
+  // MerchantData: cubrimos todas las variantes habituales
   const mdRaw =
     params['Ds_Merchant_MerchantData'] ||
     params['Ds_MerchantData'] ||
     params['DS_MERCHANT_MERCHANTDATA'];
 
   const md = parseMerchantData(mdRaw);
+
+  // Aceptar ambas formas de envío:
+  // 1) { customerData, extra: { salaId, selectedSlots } }
+  // 2) { salaId, selectedSlots } (plano)
   const customer = md?.customerData ?? {};
   const extra    = md?.extra ?? {};
-  const salaId   = Number(extra?.salaId);
-  const tramos   = Array.isArray(extra?.selectedSlots) ? extra.selectedSlots : [];
+  const salaId   = Number(extra?.salaId ?? md?.salaId);
+  const tramos   = Array.isArray(extra?.selectedSlots)
+    ? extra.selectedSlots
+    : (Array.isArray(md?.selectedSlots) ? md.selectedSlots : []);
 
-  if (!salaId || !tramos.length) {
-    console.warn('REDSYS NOTIFY: merchantData vacío/incompleto', {
-      order, hasMd: !!mdRaw, salaId, tramosLen: tramos.length
-    });
+  console.log('REDSYS NOTIFY: merchantData parsed', {
+    hasMd: !!mdRaw, salaId, tramosLen: tramos?.length ?? 0
+  });
+
+  if (!salaId || !Array.isArray(tramos) || tramos.length === 0) {
+    // Nada que persistir (evitamos reintentos innecesarios)
     return new NextResponse('OK');
   }
 
-  // Supabase (service role)
-  const supabase = createClient(SUPABASE_URL, SERVICE_ROLE, { auth: { persistSession: false } });
+  // Cliente Supabase (Service Role)
+  const supabase = createClient(SUPABASE_URL, SRK, { auth: { persistSession: false } });
 
-  // (Opcional) validar importe
+  // (Opcional) Validar importe recalculando
   const { data: sala, error: salaErr } = await supabase
     .from('salas').select('coste_hora').eq('id', salaId).single();
   if (salaErr || !sala) {
-    console.error('REDSYS NOTIFY: sala not found', { order, salaId, salaErr });
+    console.error('REDSYS NOTIFY: sala not found', { salaId, salaErr });
     return new NextResponse('ERROR', { status: 500 });
   }
 
@@ -106,11 +117,12 @@ async function processNotification(paramsB64, sigGiven) {
     acc + ((new Date(t.end).getTime() - new Date(t.start).getTime()) / 36e5), 0);
   const totalRecalc = Number((horas * Number(sala.coste_hora)).toFixed(2));
   const totalRedsys = Math.round(amountCt) / 100;
+
   if (Math.abs(totalRecalc - totalRedsys) > 0.01) {
     console.warn('REDSYS NOTIFY: total mismatch', { order, totalRecalc, totalRedsys });
   }
 
-  // 1) Reserva (idempotente por referencia_pago)
+  // 1) Insert idempotente de reserva (referencia_pago = order)
   const { data: reserva, error: resErr } = await supabase
     .from('reservas')
     .insert({
@@ -124,7 +136,9 @@ async function processNotification(paramsB64, sigGiven) {
     })
     .select('id')
     .single();
+
   if (resErr) {
+    // 23505 => duplicado (reintento Redsys): OK
     if (resErr.code === '23505') {
       console.log('REDSYS NOTIFY: duplicate (idempotent OK)', { order });
       return new NextResponse('OK');
@@ -133,17 +147,18 @@ async function processNotification(paramsB64, sigGiven) {
     return new NextResponse('ERROR', { status: 500 });
   }
 
-  // 2) Tramos
+  // 2) Insert de tramos
   const rows = tramos.map(t => ({
     reserva_id: reserva.id,
     sala_id: salaId,
     inicio: t.start,
     fin: t.end
   }));
+
   const { error: trErr } = await supabase.from('tramos_reservados').insert(rows);
   if (trErr) {
     console.error('REDSYS NOTIFY: error insert tramos', trErr);
-    // Limpieza best-effort
+    // Limpieza best-effort para no dejar reserva huérfana
     await supabase.from('reservas').delete().eq('id', reserva.id);
     return new NextResponse('ERROR', { status: 500 });
   }
@@ -152,9 +167,8 @@ async function processNotification(paramsB64, sigGiven) {
   return new NextResponse('OK');
 }
 
-/* ───────── Handlers HTTP ───────── */
-
-// Redsys suele usar POST (x-www-form-urlencoded)
+/* Handlers HTTP */
+// Redsys manda POST (x-www-form-urlencoded) en modo asíncrono
 export async function POST(request) {
   const bodyText = await request.text();
   const qs = new URLSearchParams(bodyText);
@@ -165,7 +179,7 @@ export async function POST(request) {
   return processNotification(paramsB64, sigGiven);
 }
 
-// Algunos adquirentes llegan por GET (o por redirect http→https)
+// En modo síncrono algunos flujos llegan por GET (con query)
 export async function GET(request) {
   const url = new URL(request.url);
   const sp = url.searchParams;
@@ -174,8 +188,7 @@ export async function GET(request) {
   const sigGiven =
     sp.get('Ds_Signature') || sp.get('ds_signature') || sp.get('DS_SIGNATURE');
 
-  // Si no vienen parámetros, responde OK (healthcheck / pruebas)
-  if (!paramsB64 || !sigGiven) return new NextResponse('OK');
+  if (!paramsB64 || !sigGiven) return new NextResponse('OK'); // health/noop
 
   return processNotification(paramsB64, sigGiven);
 }

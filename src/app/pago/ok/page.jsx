@@ -1,9 +1,39 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { CheckCircle } from 'lucide-react';
 
 export default function PagoOkPage() {
+  const [enviado, setEnviado] = useState(false);
+
+  useEffect(() => {
+    // En modo SÍNCRONO Redsys añade los parámetros en la URL de OK
+    const sp = new URLSearchParams(window.location.search);
+    const p =
+      sp.get('Ds_MerchantParameters') ||
+      sp.get('ds_merchantparameters') ||
+      sp.get('DS_MERCHANT_PARAMETERS');
+    const s =
+      sp.get('Ds_Signature') ||
+      sp.get('ds_signature') ||
+      sp.get('DS_SIGNATURE');
+
+    if (p && s && !enviado) {
+      setEnviado(true);
+      // Reenvía al backend para verificar e insertar en BD
+      fetch('/api/redsys/notification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          Ds_MerchantParameters: p,
+          Ds_Signature: s
+        }).toString(),
+        keepalive: true
+      }).catch(() => {});
+    }
+  }, [enviado]);
+
   return (
     <main className="flex min-h-[70vh] flex-col items-center justify-center gap-6 px-4">
       <CheckCircle className="h-20 w-20 text-green-500" strokeWidth={1.5} />
