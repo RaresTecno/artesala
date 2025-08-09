@@ -91,7 +91,7 @@ export default function HomePage() {
           <div className="absolute inset-0 bg-[radial-gradient(60%_60%_at_50%_0%,rgba(255,255,255,0.25),transparent_65%)] mix-blend-soft-light" />
         </div>
 
-        <div className="relative mx-auto flex min-h-[40vh] flex-col items-center justify-center px-6 py-28 text-center sm:py-36 lg:py-44">
+        <div className="relative mx-auto flex min-h-[40vh] flex-col items-center justify-center px-6 py-28 text-center sm:py-36 lg:py-28">
           <span className="mb-4 inline-flex items-center rounded-full bg-orange-200/30 px-3 py-1 text-xs font-medium text-white ring-1 ring-inset ring-white/40">
             Espacios de ensayo en Madrid
           </span>

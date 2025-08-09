@@ -29,7 +29,7 @@ export default function ReservaCalendar({
       });
   }, [salaId]);
 
-  // 2) Mínimo seleccionable: ahora (ajusta si quieres +1h)
+  // 2) Mínimo seleccionable: ahora
   const minSelectableDate = new Date(Date.now());
 
   // 3) Eventos: bloqueos, reservas existentes y tus selecciones
@@ -43,6 +43,11 @@ export default function ReservaCalendar({
     overlap: false,
     classNames: ['!bg-zinc-200/70'],
   };
+
+  // ── COLORES POR SALA (nuevo) ───────────────────────────────
+  const isSala1 = salaId === 1;
+  const myBg = isSala1 ? '#2563eb' /* blue-600 */ : '#16a34a' /* green-600 */;
+  const myBorder = isSala1 ? '#1d4ed8' /* blue-700 */ : '#15803d' /* green-700 */;
 
   const events = [
     blockEarlyToday,
@@ -60,11 +65,15 @@ export default function ReservaCalendar({
         id: `${slot.start}-${slot.end}`,
         start: slot.start,
         end: slot.end,
-        backgroundColor: '#f59e0b',
-        borderColor: '#d97706',
+        // ── colores de selección por sala (nuevo)
+        backgroundColor: myBg,
+        borderColor: myBorder,
         textColor: '#ffffff',
         overlap: false,
-        extendedProps: { userSelected: true },
+        extendedProps: {
+          userSelected: true,
+          salaColor: isSala1 ? 'blue' : 'green', // para estilos dinámicos
+        },
       })),
   ];
 
@@ -142,7 +151,6 @@ export default function ReservaCalendar({
           className="fc-container"
           contentClassNames={['fc-content']}
           viewClassNames={['fc-view']}
-
           /* Botones del toolbar */
           buttonClassNames={[
             'bg-orange-600',
@@ -168,7 +176,6 @@ export default function ReservaCalendar({
             'tracking-tight',
           ]}
           navLinkClassNames={() => ['underline', 'text-orange-700', 'hover:text-orange-800']}
-
           /* Encabezados y rejilla */
           dayHeaderClassNames={() => [
             'bg-orange-50',
@@ -190,17 +197,17 @@ export default function ReservaCalendar({
             '!border-orange-100',
             arg.isToday ? 'bg-orange-50/60' : '',
           ]}
-
-          /* Clase base de eventos + sutiles mejoras en tus selecciones */
+          /* Clase base de eventos: colores por sala para tus selecciones */
           eventClassNames={(arg) => {
             const isMine = arg.event.extendedProps?.userSelected;
             if (isMine) {
+              const tone = arg.event.extendedProps?.salaColor === 'blue' ? 'blue' : 'green';
               return [
                 'rounded-md',
                 'shadow',
-                'shadow-orange-800/20',
+                tone === 'blue' ? 'shadow-blue-800/20' : 'shadow-green-800/20',
                 'ring-1',
-                'ring-orange-400/60',
+                tone === 'blue' ? 'ring-blue-400/60' : 'ring-green-400/60',
                 'hover:brightness-[1.02]',
               ];
             }
@@ -218,7 +225,6 @@ export default function ReservaCalendar({
             'ring-orange-200',
             'hover:bg-orange-100',
           ]}
-
           /* Contenido de eventos: mini “x” y margen superior 3px para tus franjas */
           eventContent={(arg) => {
             const { event, timeText } = arg;
@@ -228,7 +234,7 @@ export default function ReservaCalendar({
 
             return (
               <div className="relative h-full w-full px-1 py-0.5">
-                <div className={`text-[11px] leading-4 ${isMine ? 'mt-[14px]' : ''}`}>
+                <div className={`text-[8px] leading-4 ${isMine ? '' : ''}`}>
                   <strong>{timeText}</strong>
                   {event.title ? ` · ${event.title}` : null}
                 </div>
