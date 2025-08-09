@@ -27,7 +27,6 @@ function deriveKey(order) {
   );
   return cipher.ciphertext; // WordArray (clave derivada)
 }
-
 function createSignature(order, merchantParamsB64) {
   const key = deriveKey(order);
   return CryptoJS.HmacSHA256(merchantParamsB64, key).toString(CryptoJS.enc.Base64);
@@ -43,7 +42,7 @@ export async function POST(req) {
 
     const order = generateOrder();
 
-    // Parámetros exigidos
+    // Parámetros exigidos por Redsys
     const merchantParams = {
       Ds_Merchant_Amount: Math.round(amount * 100).toString(),
       Ds_Merchant_Currency: REDSYS_CURRENCY,
@@ -56,9 +55,7 @@ export async function POST(req) {
       Ds_Merchant_MerchantURL: `${BASE_URL}/api/redsys/notification`,
       Ds_Merchant_UrlOK: `${BASE_URL}/pago/ok`,
       Ds_Merchant_UrlKO: `${BASE_URL}/pago/ko`,
-
-      // 👇 Importante: enviamos MerchantData en JSON plano
-      // (Redsys lo devolverá tal cual o base64(JSON) según configuración)
+      // MerchantData: JSON plano con todo lo necesario
       Ds_Merchant_MerchantData: JSON.stringify({ customerData, extra })
     };
 

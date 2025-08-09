@@ -7,7 +7,9 @@ import { NextResponse } from 'next/server';
 import CryptoJS from 'crypto-js';
 import { createClient } from '@supabase/supabase-js';
 
-/* ───────── Firma Redsys (Edge-safe) ───────── */
+/* ───────── Utilidades firma ───────── */
+const toStdB64 = (s) => s.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (s.length % 4)) % 4);
+
 function deriveKey(order) {
   const masterKey = CryptoJS.enc.Base64.parse(process.env.REDSYS_SECRET_KEY);
   const iv = CryptoJS.enc.Hex.parse('0000000000000000');
@@ -22,16 +24,11 @@ function calcSignature(order, paramsB64) {
   const key = deriveKey(order);
   return CryptoJS.HmacSHA256(paramsB64, key).toString(CryptoJS.enc.Base64);
 }
-function toStdB64(s) {
-  return s.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (s.length % 4)) % 4);
-}
-/* ──────────────────────────────────────────── */
 
+/* ───────── Parser robusto de MerchantData ───────── */
 function parseMerchantData(input) {
   if (!input) return {};
 
-  // Helpers
-  const toStdB64 = (s) => s.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (s.length % 4)) % 4);
   const tryJSON = (v) => { try { return JSON.parse(v); } catch { return null; } };
   const tryB64JSON = (v) => {
     try {
@@ -46,7 +43,7 @@ function parseMerchantData(input) {
   // 2) O como Base64(JSON)
   if (parsed == null) parsed = tryB64JSON(input);
 
-  // 3) Si lo anterior resultó ser un string con JSON dentro, parsear de nuevo
+  // 3) Si el resultado es todavía un string con JSON dentro, parsear de nuevo
   if (typeof parsed === 'string') {
     const again = tryJSON(parsed) ?? tryB64JSON(parsed);
     if (again != null) parsed = again;
@@ -54,35 +51,30 @@ function parseMerchantData(input) {
 
   return (parsed && typeof parsed === 'object') ? parsed : {};
 }
-console.log('REDSYS NOTIFY: md shape', {
-  hasMd: !!mdRaw, type: typeof md, keys: md && Object.keys(md)
-});
 
-
-/* Lógica común (para POST y GET) */
+/* ───────── Lógica común ───────── */
 async function processNotification(paramsB64, sigGiven) {
   const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const SRK = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  if (!process.env.REDSYS_SECRET_KEY || !SUPABASE_URL || !SRK) {
+  if (!process.env.REDSYS_SECRET_KEY || !SUPABASE_URL || !SERVICE_ROLE) {
     console.error('REDSYS NOTIFY: missing env vars');
     return new NextResponse('ERROR', { status: 500 });
   }
-
   if (!paramsB64 || !sigGiven) {
     console.warn('REDSYS NOTIFY: missing params');
     return new NextResponse('ERROR', { status: 400 });
   }
 
-  // Decodificar parámetros Redsys
-  const paramsJson = CryptoJS.enc.Utf8.stringify(CryptoJS.enc.Base64.parse(paramsB64));
+  // Decodificar parámetros para leerlos (sin alterar la cadena para la firma)
+  const paramsJson = CryptoJS.enc.Utf8.stringify(CryptoJS.enc.Base64.parse(toStdB64(paramsB64)));
   const params = JSON.parse(paramsJson);
 
   const order    = String(params['Ds_Order'] ?? '');
   const respCode = parseInt(params['Ds_Response'] ?? '999', 10);
   const amountCt = parseInt(params['Ds_Amount'] ?? '0', 10);
 
-  // Verificación firma (la recibida está en Base64 url-safe)
+  // Verificar firma (la recibida viene URL-safe)
   const expected = calcSignature(order, paramsB64);
   const givenStd = toStdB64(sigGiven);
   if (expected !== givenStd) {
@@ -93,11 +85,9 @@ async function processNotification(paramsB64, sigGiven) {
   console.log('REDSYS NOTIFY: hit + sig OK', { order, respCode, amountCt });
 
   // Solo seguimos si autorizado (0..99)
-  if (!(respCode >= 0 && respCode <= 99)) {
-    return new NextResponse('OK');
-  }
+  if (!(respCode >= 0 && respCode <= 99)) return new NextResponse('OK');
 
-  // MerchantData: cubrimos todas las variantes habituales
+  // Variantes de MerchantData
   const mdRaw =
     params['Ds_Merchant_MerchantData'] ||
     params['Ds_MerchantData'] ||
@@ -105,7 +95,7 @@ async function processNotification(paramsB64, sigGiven) {
 
   const md = parseMerchantData(mdRaw);
 
-  // Aceptar ambas formas de envío:
+  // Aceptar:
   // 1) { customerData, extra: { salaId, selectedSlots } }
   // 2) { salaId, selectedSlots } (plano)
   const customer = md?.customerData ?? {};
@@ -116,18 +106,18 @@ async function processNotification(paramsB64, sigGiven) {
     : (Array.isArray(md?.selectedSlots) ? md.selectedSlots : []);
 
   console.log('REDSYS NOTIFY: merchantData parsed', {
-    hasMd: !!mdRaw, salaId, tramosLen: tramos?.length ?? 0
+    hasMd: !!mdRaw, salaId, tramosLen: Array.isArray(tramos) ? tramos.length : 0
   });
 
   if (!salaId || !Array.isArray(tramos) || tramos.length === 0) {
-    // Nada que persistir (evitamos reintentos innecesarios)
+    console.warn('REDSYS NOTIFY: merchantData vacío/incompleto', { order, salaId, tramosLen: Array.isArray(tramos) ? tramos.length : 0 });
     return new NextResponse('OK');
   }
 
-  // Cliente Supabase (Service Role)
-  const supabase = createClient(SUPABASE_URL, SRK, { auth: { persistSession: false } });
+  // Supabase (service role)
+  const supabase = createClient(SUPABASE_URL, SERVICE_ROLE, { auth: { persistSession: false } });
 
-  // (Opcional) Validar importe recalculando
+  // (Opcional) validación de importe
   const { data: sala, error: salaErr } = await supabase
     .from('salas').select('coste_hora').eq('id', salaId).single();
   if (salaErr || !sala) {
@@ -139,12 +129,11 @@ async function processNotification(paramsB64, sigGiven) {
     acc + ((new Date(t.end).getTime() - new Date(t.start).getTime()) / 36e5), 0);
   const totalRecalc = Number((horas * Number(sala.coste_hora)).toFixed(2));
   const totalRedsys = Math.round(amountCt) / 100;
-
   if (Math.abs(totalRecalc - totalRedsys) > 0.01) {
     console.warn('REDSYS NOTIFY: total mismatch', { order, totalRecalc, totalRedsys });
   }
 
-  // 1) Insert idempotente de reserva (referencia_pago = order)
+  // 1) Reserva (idempotente por referencia_pago = order)
   const { data: reserva, error: resErr } = await supabase
     .from('reservas')
     .insert({
@@ -160,8 +149,7 @@ async function processNotification(paramsB64, sigGiven) {
     .single();
 
   if (resErr) {
-    // 23505 => duplicado (reintento Redsys): OK
-    if (resErr.code === '23505') {
+    if (resErr.code === '23505') { // duplicado
       console.log('REDSYS NOTIFY: duplicate (idempotent OK)', { order });
       return new NextResponse('OK');
     }
@@ -169,18 +157,16 @@ async function processNotification(paramsB64, sigGiven) {
     return new NextResponse('ERROR', { status: 500 });
   }
 
-  // 2) Insert de tramos
+  // 2) Tramos
   const rows = tramos.map(t => ({
     reserva_id: reserva.id,
     sala_id: salaId,
     inicio: t.start,
     fin: t.end
   }));
-
   const { error: trErr } = await supabase.from('tramos_reservados').insert(rows);
   if (trErr) {
     console.error('REDSYS NOTIFY: error insert tramos', trErr);
-    // Limpieza best-effort para no dejar reserva huérfana
     await supabase.from('reservas').delete().eq('id', reserva.id);
     return new NextResponse('ERROR', { status: 500 });
   }
@@ -189,8 +175,7 @@ async function processNotification(paramsB64, sigGiven) {
   return new NextResponse('OK');
 }
 
-/* Handlers HTTP */
-// Redsys manda POST (x-www-form-urlencoded) en modo asíncrono
+/* ───────── Handlers HTTP ───────── */
 export async function POST(request) {
   const bodyText = await request.text();
   const qs = new URLSearchParams(bodyText);
@@ -201,7 +186,6 @@ export async function POST(request) {
   return processNotification(paramsB64, sigGiven);
 }
 
-// En modo síncrono algunos flujos llegan por GET (con query)
 export async function GET(request) {
   const url = new URL(request.url);
   const sp = url.searchParams;
@@ -211,6 +195,5 @@ export async function GET(request) {
     sp.get('Ds_Signature') || sp.get('ds_signature') || sp.get('DS_SIGNATURE');
 
   if (!paramsB64 || !sigGiven) return new NextResponse('OK'); // health/noop
-
   return processNotification(paramsB64, sigGiven);
 }

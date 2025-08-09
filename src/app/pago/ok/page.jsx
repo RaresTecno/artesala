@@ -18,6 +18,10 @@ export default function PagoOkPage() {
       sp.get('Ds_Signature') ||
       sp.get('ds_signature') ||
       sp.get('DS_SIGNATURE');
+    const v =
+      sp.get('Ds_SignatureVersion') ||
+      sp.get('ds_signatureversion') ||
+      sp.get('DS_SIGNATUREVERSION') || 'HMAC_SHA256_V1';
 
     if (p && s && !enviado) {
       setEnviado(true);
@@ -27,7 +31,8 @@ export default function PagoOkPage() {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
           Ds_MerchantParameters: p,
-          Ds_Signature: s
+          Ds_Signature: s,
+          Ds_SignatureVersion: v
         }).toString(),
         keepalive: true
       }).catch(() => {});
