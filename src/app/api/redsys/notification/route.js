@@ -29,13 +29,35 @@ function toStdB64(s) {
 
 function parseMerchantData(input) {
   if (!input) return {};
-  // Puede venir en JSON plano o en Base64(JSON)
-  try { return JSON.parse(input); } catch {}
-  try {
-    const asJson = CryptoJS.enc.Utf8.stringify(CryptoJS.enc.Base64.parse(input));
-    return JSON.parse(asJson);
-  } catch { return {}; }
+
+  // Helpers
+  const toStdB64 = (s) => s.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (s.length % 4)) % 4);
+  const tryJSON = (v) => { try { return JSON.parse(v); } catch { return null; } };
+  const tryB64JSON = (v) => {
+    try {
+      const txt = CryptoJS.enc.Utf8.stringify(CryptoJS.enc.Base64.parse(toStdB64(v)));
+      return tryJSON(txt) ?? txt; // devuelve objeto o string
+    } catch { return null; }
+  };
+
+  // 1) Puede venir como JSON directo
+  let parsed = tryJSON(input);
+
+  // 2) O como Base64(JSON)
+  if (parsed == null) parsed = tryB64JSON(input);
+
+  // 3) Si lo anterior resultó ser un string con JSON dentro, parsear de nuevo
+  if (typeof parsed === 'string') {
+    const again = tryJSON(parsed) ?? tryB64JSON(parsed);
+    if (again != null) parsed = again;
+  }
+
+  return (parsed && typeof parsed === 'object') ? parsed : {};
 }
+console.log('REDSYS NOTIFY: md shape', {
+  hasMd: !!mdRaw, type: typeof md, keys: md && Object.keys(md)
+});
+
 
 /* Lógica común (para POST y GET) */
 async function processNotification(paramsB64, sigGiven) {
