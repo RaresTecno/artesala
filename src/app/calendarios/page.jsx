@@ -19,11 +19,11 @@ export default function Page() {
           <div className="absolute inset-0 bg-[radial-gradient(60%_60%_at_50%_0%,rgba(255,255,255,0.25),transparent_65%)] mix-blend-soft-light" />
         </div>
 
-        <div className="relative mx-auto flex min-h-[40vh] flex-col items-center justify-center px-6 py-24 text-center sm:py-32">
+        <div className="relative mx-auto flex min-h-[40vh] flex-col items-center px-6 pt-25 pb-0 text-center sm:pt-25 sm:pb-0">
           <span className="mb-3 inline-flex items-center rounded-full bg-orange-200/30 px-3 py-1 text-xs font-medium text-white ring-1 ring-inset ring-white/40">
             Disponibilidad en tiempo real
           </span>
-          <h1 className="max-w-5xl text-4xl font-bold tracking-tight text-white drop-shadow-sm sm:text-6xl">
+          <h1 className="max-w-5xl text-5xl font-bold tracking-tight text-white drop-shadow-sm sm:text-6xl">
             Disponibilidad
           </h1>
           <p className="mx-auto mt-3 max-w-2xl text-base leading-relaxed text-orange-50 sm:text-lg">
