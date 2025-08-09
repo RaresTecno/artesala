@@ -25,7 +25,6 @@ const SALAS = [
       "https://artesala.org/wp-content/uploads/2024/09/img20240911193025-1.jpg",
       "https://artesala.org/wp-content/uploads/2024/09/img20240911193039-1.jpg",
       "https://artesala.org/wp-content/uploads/2024/09/img20240911193056-1.jpg",
-      "https://artesala.org/wp-content/uploads/2024/09/img20240911193125.jpg",
       "https://artesala.org/wp-content/uploads/2024/10/img-20241010-wa0006.jpg",
       "https://artesala.org/wp-content/uploads/2024/10/img-20241010-wa0008.jpg",
     ],
