@@ -199,7 +199,7 @@ export default function ReservaSalaPage({ salaId }) {
         <div className="absolute inset-0 bg-[radial-gradient(60%_60%_at_50%_0%,rgba(255,255,255,0.25),transparent_65%)] mix-blend-soft-light" />
       </div>
 
-      <main className="mx-auto w-full max-w-[85vw] px-4 pb-24 pt-8 text-zinc-900">
+      <main className="mx-auto w-full max-w-[100vw] px-4 pb-24 pt-8 text-zinc-900 lg:max-w-[85vw] ">
         <header className="mb-6 mt-16 flex items-center justify-between">
           <button
             type="button"
