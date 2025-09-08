@@ -15,6 +15,24 @@ import {
 } from 'lucide-react';
 import Calendar from '@/components/Calendar';
 import { supabase } from '@/lib/supabaseClient';
+import { z } from 'zod';
+
+// ✅ Esquema Zod (prefijo como input obligatorio)
+const formSchema = z.object({
+  nombre: z.string().trim().min(3, 'Introduce tu nombre completo.').max(100, 'Máximo 100 caracteres.'),
+  correo: z.string().trim().email('Correo inválido.'),
+  prefijo: z
+    .string()
+    .trim()
+    .transform(v => v.replace(/\s+/g, ''))
+    .pipe(z.string().regex(/^\+\d{1,4}$/, 'Prefijo inválido. Ej.: +34')),
+  telefono: z
+    .string()
+    .trim()
+    .transform(v => v.replace(/\s+/g, ''))
+    .pipe(z.string().regex(/^\d{6,15}$/, 'Introduce solo dígitos (6–15).')),
+  info_adicional: z.string().trim().max(500, 'Máximo 500 caracteres.').optional().or(z.literal('')),
+});
 
 export default function ReservaSalaPage({ salaId }) {
   const router = useRouter();
@@ -23,9 +41,11 @@ export default function ReservaSalaPage({ salaId }) {
   const [form, setForm] = useState({
     nombre: '',
     correo: '',
+    prefijo: '+34',        // ✅ por defecto
     telefono: '',
     info_adicional: '',
   });
+  const [fieldErrs, setFieldErrs] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
@@ -122,12 +142,28 @@ export default function ReservaSalaPage({ salaId }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // ✅ Validación Zod
+    const parsed = formSchema.safeParse(form);
+    if (!parsed.success) {
+      const errs = {};
+      parsed.error.issues.forEach((i) => {
+        const k = i.path[0];
+        if (!errs[k]) errs[k] = i.message;
+      });
+      setFieldErrs(errs);
+      setError('Por favor, corrige los campos marcados.');
+      return;
+    }
+    setFieldErrs({});
+    setError(null);
+
     if (!selectedSlots.length) {
       setError('Debes seleccionar al menos un tramo.');
       return;
     }
+
     setLoading(true);
-    setError(null);
     try {
       const { data: salaData, error: salaErr } = await supabase
         .from('salas')
@@ -151,13 +187,18 @@ export default function ReservaSalaPage({ salaId }) {
         return;
       }
 
+      // Combinar prefijo + teléfono ya normalizados por Zod
+      const clean = parsed.data;
+      const { prefijo, telefono, ...rest } = clean;
+      const customerClean = { ...rest, telefono: `${prefijo}${telefono}` };
+
       const res = await fetch('/api/redsys', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           amount: total,
           description: `Reserva Sala ${salaId}`,
-          customerData: form,
+          customerData: customerClean,
           extra: { salaId, selectedSlots },
         }),
       });
@@ -380,9 +421,18 @@ export default function ReservaSalaPage({ salaId }) {
                             required
                             autoComplete="name"
                             placeholder="Nombre y apellidos"
-                            className="mt-0 w-full rounded-xl border border-gray-300 py-2.5 pl-9 pr-3 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50"
+                            className={`mt-0 w-full rounded-xl border py-2.5 pl-9 pr-3 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50 ${
+                              fieldErrs.nombre ? 'border-red-400' : 'border-gray-300'
+                            }`}
+                            aria-invalid={!!fieldErrs.nombre}
+                            aria-describedby={fieldErrs.nombre ? 'err-nombre' : undefined}
                           />
                         </div>
+                        {fieldErrs.nombre && (
+                          <p id="err-nombre" className="mt-1 text-xs text-red-600">
+                            {fieldErrs.nombre}
+                          </p>
+                        )}
                       </div>
 
                       <div>
@@ -400,29 +450,73 @@ export default function ReservaSalaPage({ salaId }) {
                             required
                             autoComplete="email"
                             placeholder="nombre@dominio.com"
-                            className="mt-0 w-full rounded-xl border border-gray-300 py-2.5 pl-9 pr-3 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50"
+                            className={`mt-0 w-full rounded-xl border py-2.5 pl-9 pr-3 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50 ${
+                              fieldErrs.correo ? 'border-red-400' : 'border-gray-300'
+                            }`}
+                            aria-invalid={!!fieldErrs.correo}
+                            aria-describedby={fieldErrs.correo ? 'err-correo' : undefined}
                           />
                         </div>
+                        {fieldErrs.correo && (
+                          <p id="err-correo" className="mt-1 text-xs text-red-600">
+                            {fieldErrs.correo}
+                          </p>
+                        )}
                       </div>
 
                       <div>
                         <label className="mb-1 block text-sm font-medium" htmlFor="telefono">
-                          Teléfono
+                          Prefijo + Teléfono
                         </label>
-                        <div className="relative">
-                          <Phone className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-                          <input
-                            id="telefono"
-                            name="telefono"
-                            type="tel"
-                            value={form.telefono}
-                            onChange={handleChange}
-                            required
-                            autoComplete="tel"
-                            inputMode="tel"
-                            placeholder="+34 600 000 000"
-                            className="mt-0 w-full rounded-xl border border-gray-300 py-2.5 pl-9 pr-3 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50"
-                          />
+                        {/* Prefijo (input) + número (input) */}
+                        <div className="flex gap-2">
+                          <div className="relative w-18">
+                            <input
+                              id="prefijo"
+                              name="prefijo"
+                              type="tel"
+                              value={form.prefijo}
+                              onChange={handleChange}
+                              required
+                              inputMode="tel"
+                              placeholder="+34"
+                              className={`mt-0 w-full rounded-xl border py-2.5 pl-3 pr-3 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50 ${
+                                fieldErrs.prefijo ? 'border-red-400' : 'border-gray-300'
+                              }`}
+                              aria-invalid={!!fieldErrs.prefijo}
+                              aria-describedby={fieldErrs.prefijo ? 'err-prefijo' : undefined}
+                            />
+                            {fieldErrs.prefijo && (
+                              <p id="err-prefijo" className="mt-1 text-xs text-red-600">
+                                {fieldErrs.prefijo}
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="relative flex-1">
+                            <Phone className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                            <input
+                              id="telefono"
+                              name="telefono"
+                              type="tel"
+                              value={form.telefono}
+                              onChange={handleChange}
+                              required
+                              autoComplete="tel"
+                              inputMode="tel"
+                              placeholder="600000000"
+                              className={`mt-0 w-full rounded-xl border py-2.5 pl-9 pr-3 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50 ${
+                                fieldErrs.telefono ? 'border-red-400' : 'border-gray-300'
+                              }`}
+                              aria-invalid={!!fieldErrs.telefono}
+                              aria-describedby={fieldErrs.telefono ? 'err-telefono' : undefined}
+                            />
+                            {fieldErrs.telefono && (
+                              <p id="err-telefono" className="mt-1 text-xs text-red-600">
+                                {fieldErrs.telefono}
+                              </p>
+                            )}
+                          </div>
                         </div>
                         <p className="mt-1 text-xs text-gray-500">
                           Solo para comunicaciones sobre su reserva.
@@ -442,9 +536,20 @@ export default function ReservaSalaPage({ salaId }) {
                             onChange={handleChange}
                             rows={4}
                             placeholder="Indique necesidades técnicas, número de personas, etc."
-                            className="mt-0 w-full rounded-xl border border-gray-300 py-2.5 pl-9 pr-3 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50"
+                            className={`mt-0 w-full rounded-xl border py-2.5 pl-9 pr-3 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50 ${
+                              fieldErrs.info_adicional ? 'border-red-400' : 'border-gray-300'
+                            }`}
+                            aria-invalid={!!fieldErrs.info_adicional}
+                            aria-describedby={
+                              fieldErrs.info_adicional ? 'err-info' : undefined
+                            }
                           />
                         </div>
+                        {fieldErrs.info_adicional && (
+                          <p id="err-info" className="mt-1 text-xs text-red-600">
+                            {fieldErrs.info_adicional}
+                          </p>
+                        )}
                       </div>
                     </div>
 
