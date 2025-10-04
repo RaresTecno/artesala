@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -11,6 +11,7 @@ import {
   Clock3,
   MapPin,
   CheckCircle2,
+  Mail
 } from "lucide-react";
 import Gallery from "@/app/salas/Gallery"; // ← ajusta la ruta si es necesario
 
@@ -81,6 +82,10 @@ export default function HomePage() {
   const [expanded, setExpanded] = useState({});
   const toggle = (id) => setExpanded((p) => ({ ...p, [id]: !p[id] }));
 
+  const mapRef = useRef(null);
+  const scrollToMap = useCallback(() => {
+    mapRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
   return (
     <main className="bg-white text-zinc-900">
       {/* HERO – degradado naranja */}
@@ -123,6 +128,7 @@ export default function HomePage() {
         className="border-y border-orange-200 bg-orange-50/70"
       >
         <div className="mx-auto grid max-w-6xl grid-cols-1 gap-4 px-6 py-4 sm:grid-cols-2 lg:grid-cols-5">
+          {/* Valoración excelente */}
           <div className="flex items-center gap-3">
             <div className="rounded-lg bg-white p-2 text-orange-600 ring-1 ring-orange-200">
               <Star className="h-5 w-5" />
@@ -133,6 +139,7 @@ export default function HomePage() {
             </div>
           </div>
 
+          {/* Pago seguro */}
           <div className="flex items-center gap-3">
             <div className="rounded-lg bg-white p-2 text-orange-600 ring-1 ring-orange-200">
               <ShieldCheck className="h-5 w-5" />
@@ -143,6 +150,7 @@ export default function HomePage() {
             </div>
           </div>
 
+          {/* Reserva por horas */}
           <div className="flex items-center gap-3">
             <div className="rounded-lg bg-white p-2 text-orange-600 ring-1 ring-orange-200">
               <Clock3 className="h-5 w-5" />
@@ -153,7 +161,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* NUEVO: Abierto 365 días */}
+          {/* Abierto 365 días */}
           <div className="flex items-center gap-3">
             <div className="rounded-lg bg-white p-2 text-orange-600 ring-1 ring-orange-200">
               <CalendarCheck2 className="h-5 w-5" />
@@ -164,15 +172,21 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-white p-2 text-orange-600 ring-1 ring-orange-200">
+          {/* ⬇️ Ubicación céntrica: ahora es botón que hace scroll */}
+          <button
+            type="button"
+            onClick={scrollToMap}
+            className="group flex items-center gap-3 rounded-lg p-0 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500"
+            aria-label="Ir al mapa de ubicación"
+          >
+            <span className="rounded-lg bg-white p-2 text-orange-600 ring-1 ring-orange-200 group-hover:bg-orange-50">
               <MapPin className="h-5 w-5" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-orange-900">Ubicación céntrica</p>
-              <p className="text-xs text-orange-900/70">C/ Abejuela, 7 · Madrid</p>
-            </div>
-          </div>
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold text-orange-900">Ubicación céntrica</span>
+              <span className="block text-xs text-orange-900/70">C/ Abejuela, 7 · Madrid</span>
+            </span>
+          </button>
         </div>
       </section>
 
@@ -276,7 +290,7 @@ export default function HomePage() {
           ¿Cómo funciona?
         </h2>
 
-        <ol className="grid gap-6 sm:grid-cols-2">
+        <ol className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {[
             {
               num: "1",
@@ -286,9 +300,16 @@ export default function HomePage() {
             },
             {
               num: "2",
-              title: "Paga y listo",
+              title: "Paga",
               text: "Paga online de forma segura y tu reserva queda confirmada.",
               Icon: CreditCard,
+            },
+            {
+              num: "3",
+              title: "Recibirás las instrucciones",
+              text:
+                "Recibirás un mensaje en tu correo electrónico y WhatsApp con los detalles para acceder a la sala.",
+              Icon: Mail, // puedes usar MessageSquare si prefieres
             },
           ].map(({ num, title, text, Icon }) => (
             <li
@@ -321,6 +342,7 @@ export default function HomePage() {
         </div>
       </section>
 
+
       {/* TESTIMONIOS */}
       <section className="bg-gradient-to-b from-orange-600 via-orange-600 to-orange-600 py-16 text-orange-50">
         <div className="mx-auto max-w-6xl px-6">
@@ -332,42 +354,42 @@ export default function HomePage() {
               {
                 name: "Teresa Ruiz Velasco",
                 location: "Madrid",
-                avatar: "/usuario.webp",
+                avatar: "/artesala_logo.png",
                 quote:
                   "Un espacio muy recomendable para ensayos: económico, limpio y con un trato impecable.",
               },
               {
                 name: "Fábrica de Ninjas",
                 location: "Madrid",
-                avatar: "/usuario.webp",
+                avatar: "/artesala_logo.png",
                 quote:
                   "Muy acogedor, tranquilo para trabajar y el dueño es muy atento. ¡Muy recomendable!",
               },
               {
                 name: "Marta Paúl",
                 location: "Madrid",
-                avatar: "/usuario.webp",
+                avatar: "/artesala_logo.png",
                 quote:
                   "Un espacio muy bien equipado. Julio pone todas las facilidades para que sea cómodo.",
               },
               {
                 name: "Annika Pannito",
                 location: "Madrid",
-                avatar: "/usuario.webp",
+                avatar: "/artesala_logo.png",
                 quote:
                   "Ideal para clases de danza. Sala amplia y dueño siempre disponible. Lo recomiendo.",
               },
               {
                 name: "Miss Teen España",
                 location: "Madrid",
-                avatar: "/usuario.webp",
+                avatar: "/artesala_logo.png",
                 quote:
                   "Excelente espacio para ensayar distintos eventos y con muchas comodidades.",
               },
               {
                 name: "Naima Sahko",
                 location: "Madrid",
-                avatar: "/usuario.webp",
+                avatar: "/artesala_logo.png",
                 quote:
                   "Espacio amplio, impecable, buenas instalaciones y muy buen trato.",
               },
@@ -404,13 +426,18 @@ export default function HomePage() {
       </section>
 
       {/* CONTACTO / UBICACIÓN */}
-      <section className="mx-auto max-w-6xl px-6 py-16">
+      <section
+        id="mapa"                    // ⬅️ añade un id por semántica/anclaje
+        ref={mapRef}                 // ⬅️ objetivo del scroll
+        className="mx-auto max-w-6xl px-6 py-16 scroll-mt-24" // ⬅️ offset si tienes header fijo
+      >
         <h2 className="mb-2 text-center text-2xl font-semibold">¿Dónde estamos?</h2>
         <p className="mb-6 text-center text-sm text-zinc-600">
           C/ Abejuela, 7 · 28047 Madrid · Metros: Carpetana / Carabanchel
         </p>
 
         <div className="grid gap-6 md:grid-cols-3">
+          {/* Tarjeta info */}
           <div className="rounded-2xl border border-orange-200 bg-orange-50 p-5 shadow-sm md:col-span-1">
             <h3 className="text-base font-semibold text-orange-900">ArteSala</h3>
             <p className="mt-1 text-sm text-orange-900/80">C/ Abejuela, 7 · 28047 Madrid</p>
@@ -433,6 +460,7 @@ export default function HomePage() {
             </div>
           </div>
 
+          {/* Mapa */}
           <div className="relative h-72 overflow-hidden rounded-2xl border border-orange-200 shadow-sm md:col-span-2">
             <iframe
               title="Ubicación de ArteSala, Madrid"

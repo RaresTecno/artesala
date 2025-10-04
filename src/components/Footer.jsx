@@ -5,7 +5,7 @@ import { Facebook, Instagram, Twitter, Youtube } from 'lucide-react';
 // Extraer datos de navegación y políticas evita recrear arrays en cada render
 const NAV_LINKS = [
   { href: '/', label: 'Inicio' },
-  { href: '/reservar', label: 'Reservar' },
+  { href: '/salas', label: 'Reservar' },
   { href: '/calendarios', label: 'Calendarios' },
   { href: '/actividades', label: 'Actividades' },
 ];
@@ -15,10 +15,10 @@ const POLICY_LINKS = [
   { href: '/cookies', label: 'Política de Cookies' },
 ];
 const SOCIAL_LINKS = [
-  { icon: Facebook, url: 'https://facebook.com/ArteSala', label: 'Facebook' },
-  { icon: Instagram, url: 'https://instagram.com/ArteSala', label: 'Instagram' },
-  { icon: Twitter, url: 'https://twitter.com/ArteSala', label: 'Twitter' },
-  { icon: Youtube, url: 'https://youtube.com/ArteSala', label: 'YouTube' },
+  { icon: Facebook, url: 'https://www.facebook.com/EspacioDeEnsayo', label: 'Facebook' },
+  { icon: Instagram, url: 'https://www.instagram.com/artesalamulti/', label: 'Instagram' },
+  // { icon: Twitter, url: 'https://twitter.com/ArteSala', label: 'Twitter' },
+  // { icon: Youtube, url: 'https://youtube.com/ArteSala', label: 'YouTube' },
 ];
 
 export default function Footer() {
@@ -65,6 +65,9 @@ export default function Footer() {
         {/* Contacto & Redes Sociales */}
         <div>
           <h4 className="text-lg font-semibold mb-4">Contáctanos</h4>
+          <Link href="/contacto" className="hover:text-white transition-colors underline" prefetch={false}>
+            Ir a contacto
+          </Link>
           <p className="text-sm leading-relaxed">
             C/ Abejuela, 7<br />
             28047 Madrid<br />

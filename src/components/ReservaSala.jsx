@@ -2,17 +2,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  CalendarClock,
-  X,
-  User,
-  Mail,
-  Phone,
-  Info,
-  Receipt,
-  ArrowLeft,
-  Loader2,
-} from 'lucide-react';
+import { CalendarClock, X, User, Mail, Phone, Info, Receipt, ArrowLeft, Loader2, CalendarRange } from 'lucide-react';
+
 import Calendar from '@/components/Calendar';
 import { supabase } from '@/lib/supabaseClient';
 import { z } from 'zod';
@@ -241,7 +232,7 @@ export default function ReservaSalaPage({ salaId }) {
       </div>
 
       <main className="mx-auto w-full max-w-[100vw] px-4 pb-24 pt-8 text-zinc-900 lg:max-w-[85vw] ">
-        <header className="mb-6 mt-16 flex items-center justify-between">
+        <header className="mb-6 mt-16 flex flex-wrap items-center justify-between gap-3">
           <button
             type="button"
             onClick={() => router.back()}
@@ -250,11 +241,25 @@ export default function ReservaSalaPage({ salaId }) {
             <ArrowLeft className="h-4 w-4" />
             Volver
           </button>
-          <h1 className="text-center text-xl font-semibold text-white drop-shadow sm:text-2xl">
+
+          <h1 className="order-3 w-full text-center text-xl font-semibold text-white drop-shadow sm:order-none sm:w-auto sm:text-2xl">
             Reservar Sala {salaId}
           </h1>
-          <div className="w-[88px]" aria-hidden />
+
+          {/* Botón actividades recurrentes */}
+          <button
+            type="button"
+            onClick={() => router.push('/contacto')}
+            className="hover:cursor-pointer inline-flex items-center gap-2 rounded-xl border border-orange-200 bg-white/95 px-3 py-2 text-sm font-medium text-orange-700 shadow-sm backdrop-blur transition hover:bg-orange-50"
+            aria-label="Ir a contacto"
+            title="Actividades recurrentes (bonos, clases semanales, etc.)"
+          >
+            <CalendarRange className="h-4 w-4" />
+            Para actividades recurrentes haz click aqui
+          </button>
+
         </header>
+
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2">
@@ -421,9 +426,8 @@ export default function ReservaSalaPage({ salaId }) {
                             required
                             autoComplete="name"
                             placeholder="Nombre y apellidos"
-                            className={`mt-0 w-full rounded-xl border py-2.5 pl-9 pr-3 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50 ${
-                              fieldErrs.nombre ? 'border-red-400' : 'border-gray-300'
-                            }`}
+                            className={`mt-0 w-full rounded-xl border py-2.5 pl-9 pr-3 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50 ${fieldErrs.nombre ? 'border-red-400' : 'border-gray-300'
+                              }`}
                             aria-invalid={!!fieldErrs.nombre}
                             aria-describedby={fieldErrs.nombre ? 'err-nombre' : undefined}
                           />
@@ -450,9 +454,8 @@ export default function ReservaSalaPage({ salaId }) {
                             required
                             autoComplete="email"
                             placeholder="nombre@dominio.com"
-                            className={`mt-0 w-full rounded-xl border py-2.5 pl-9 pr-3 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50 ${
-                              fieldErrs.correo ? 'border-red-400' : 'border-gray-300'
-                            }`}
+                            className={`mt-0 w-full rounded-xl border py-2.5 pl-9 pr-3 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50 ${fieldErrs.correo ? 'border-red-400' : 'border-gray-300'
+                              }`}
                             aria-invalid={!!fieldErrs.correo}
                             aria-describedby={fieldErrs.correo ? 'err-correo' : undefined}
                           />
@@ -480,9 +483,8 @@ export default function ReservaSalaPage({ salaId }) {
                               required
                               inputMode="tel"
                               placeholder="+34"
-                              className={`mt-0 w-full rounded-xl border py-2.5 pl-3 pr-3 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50 ${
-                                fieldErrs.prefijo ? 'border-red-400' : 'border-gray-300'
-                              }`}
+                              className={`mt-0 w-full rounded-xl border py-2.5 pl-3 pr-3 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50 ${fieldErrs.prefijo ? 'border-red-400' : 'border-gray-300'
+                                }`}
                               aria-invalid={!!fieldErrs.prefijo}
                               aria-describedby={fieldErrs.prefijo ? 'err-prefijo' : undefined}
                             />
@@ -505,9 +507,8 @@ export default function ReservaSalaPage({ salaId }) {
                               autoComplete="tel"
                               inputMode="tel"
                               placeholder="600000000"
-                              className={`mt-0 w-full rounded-xl border py-2.5 pl-9 pr-3 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50 ${
-                                fieldErrs.telefono ? 'border-red-400' : 'border-gray-300'
-                              }`}
+                              className={`mt-0 w-full rounded-xl border py-2.5 pl-9 pr-3 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50 ${fieldErrs.telefono ? 'border-red-400' : 'border-gray-300'
+                                }`}
                               aria-invalid={!!fieldErrs.telefono}
                               aria-describedby={fieldErrs.telefono ? 'err-telefono' : undefined}
                             />
@@ -536,9 +537,8 @@ export default function ReservaSalaPage({ salaId }) {
                             onChange={handleChange}
                             rows={4}
                             placeholder="Indique necesidades técnicas, número de personas, etc."
-                            className={`mt-0 w-full rounded-xl border py-2.5 pl-9 pr-3 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50 ${
-                              fieldErrs.info_adicional ? 'border-red-400' : 'border-gray-300'
-                            }`}
+                            className={`mt-0 w-full rounded-xl border py-2.5 pl-9 pr-3 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50 ${fieldErrs.info_adicional ? 'border-red-400' : 'border-gray-300'
+                              }`}
                             aria-invalid={!!fieldErrs.info_adicional}
                             aria-describedby={
                               fieldErrs.info_adicional ? 'err-info' : undefined

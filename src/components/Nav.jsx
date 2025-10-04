@@ -10,6 +10,7 @@ const links = [
   { href: '/salas', label: 'Reservar' },      // CTA destacado
   { href: '/calendarios', label: 'Calendarios' },
   { href: '/actividades', label: 'Actividades' },
+  { href: '/contacto', label: 'Contacto' },
 ];
 
 export default function Nav() {

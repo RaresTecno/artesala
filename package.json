@@ -9,9 +9,11 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@fullcalendar/interaction": "^6.1.18",
-    "@fullcalendar/react": "^6.1.18",
-    "@fullcalendar/timegrid": "^6.1.18",
+    "@fullcalendar/core": "^6.1.19",
+    "@fullcalendar/interaction": "^6.1.19",
+    "@fullcalendar/react": "^6.1.19",
+    "@fullcalendar/rrule": "^6.1.19",
+    "@fullcalendar/timegrid": "^6.1.19",
     "@supabase/supabase-js": "^2.52.1",
     "crypto-js": "^4.2.0",
     "fullcalendar": "^6.1.18",
@@ -19,6 +21,7 @@
     "next": "15.4.2",
     "react": "19.1.0",
     "react-dom": "19.1.0",
+    "rrule": "^2.8.1",
     "zod": "^4.1.5"
   },
   "devDependencies": {
