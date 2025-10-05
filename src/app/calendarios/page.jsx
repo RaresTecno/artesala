@@ -9,6 +9,41 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import { supabase } from '@/lib/supabaseClient';
 
+// Acepta:
+//  - ISO con T y zona: "2025-10-05T12:30:00Z" o "+02:00" → ok
+//  - ISO sin zona:      "2025-10-05T12:30:00"            → ok (local)
+//  - Espacio en medio:  "2025-10-05 12:30:00"            → lo convertimos a Date local
+const parseDBDate = (v) => {
+  if (!v) return null;
+  if (v instanceof Date) return v;
+
+  if (typeof v === 'string') {
+    // Si ya tiene "T", que lo parsee el motor (maneja Z o +/-hh:mm)
+    if (/\dT\d/.test(v)) return new Date(v);
+
+    // Formato "YYYY-MM-DD HH:mm(:ss)?"
+    const m = v.match(
+      /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/
+    );
+    if (m) {
+      const [, Y, M, D, h, mi, s = '00'] = m;
+      return new Date(
+        Number(Y),
+        Number(M) - 1,
+        Number(D),
+        Number(h),
+        Number(mi),
+        Number(s)
+      ); // ← siempre local, consistente en iOS/Android
+    }
+
+    // Último intento: cambia espacio por T
+    return new Date(v.replace(' ', 'T'));
+  }
+  return null;
+};
+
+
 export default function Page() {
   return (
     <main className="bg-white text-zinc-900">
@@ -78,7 +113,23 @@ export default function Page() {
    - Si coinciden, FullCalendar los coloca en columnas (mitad del ancho)
    - Fondo gris para horas pasadas del día actual
 ────────────────────────────────────────────────────────────── */
+const mapped = (data ?? []).map((slot) => {
+  const isSala1 = slot.sala_id === 1;
+  return {
+    title: isSala1 ? 'Sala 1' : 'Sala 2',
+    start: parseDBDate(slot.inicio),
+    end: parseDBDate(slot.fin),
+    overlap: true,
+    backgroundColor: isSala1 ? '#3b82f6' : '#22c55e',
+    borderColor: isSala1 ? '#1d4ed8' : '#15803d',
+    textColor: '#ffffff',
+    extendedProps: { salaId: slot.sala_id },
+    classNames: ['rounded-md', 'shadow-md'],
+  };
+});
+
 function CombinedCalendar() {
+  
   const calendarRef = useRef(null);
   const [events, setEvents] = useState([]);
 
@@ -198,7 +249,22 @@ function CombinedCalendar() {
           dayHeaderContentClassNames={() => ['flex', 'justify-center', 'items-center', 'text-xs', 'sm:text-base']}
           slotLabelClassNames={() => ['text-gray-400', 'text-[10px]', 'sm:text-[12px]', 'pr-1']}
           slotLaneClassNames={() => ['!border-l', '!border-gray-200']}
-          dayCellClassNames={() => ['!border', '!border-gray-200']}
+          dayCellClassNames={(arg) => {
+            const cls = ['!border', '!border-gray-200'];
+            const dow = arg.date.getDay(); // 0=Domingo, 6=Sábado
+
+            // Fondo amarillo pastel para sáb/dom
+            if (dow === 0 || dow === 6) cls.push('bg-yellow-100/60');
+
+            // “Hoy” mantiene su estilo por encima del amarillo, si lo quieres:
+            if (arg.isToday) {
+              const i = cls.indexOf('bg-yellow-100/60');
+              if (i !== -1) cls.splice(i, 1);
+              cls.push('bg-orange-50/60');
+            }
+            return cls;
+          }}
+
           moreLinkClassNames={() => ['cursor-pointer', 'text-sm']}
 
           /* Pintado custom para colores vibrantes + chip de sala */
@@ -210,22 +276,20 @@ function CombinedCalendar() {
               <div className="relative h-full w-full">
                 {/* Capa de color vibrante */}
                 <div
-                  className={`absolute inset-0 rounded-md ring-1 ${
-                    isSala1
+                  className={`absolute inset-0 rounded-md ring-1 ${isSala1
                       ? 'bg-gradient-to-br from-blue-500 to-blue-600 ring-blue-700'
                       : 'bg-gradient-to-br from-green-500 to-green-600 ring-green-700'
-                  }`}
+                    }`}
                 />
                 {/* Contenido */}
                 <div className="relative z-10 px-1.5 py-1 text-[11px] leading-4 text-white">
                   <div className="flex items-center gap-1.5">
                     <span className="font-bold">{arg.timeText}</span>
                     <span
-                      className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ring-1 ${
-                        isSala1
+                      className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ring-1 ${isSala1
                           ? 'bg-white/15 ring-white/30'
                           : 'bg-white/15 ring-white/30'
-                      }`}
+                        }`}
                     >
                       {isSala1 ? 'Sala 1' : 'Sala 2'}
                     </span>

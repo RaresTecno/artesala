@@ -17,6 +17,41 @@ export default function ReservaCalendar({
   const [reservedSlots, setReservedSlots] = useState([]);
   const todayStr = new Date().toISOString().split('T')[0];
 
+  // Acepta:
+  //  - ISO con T y zona: "2025-10-05T12:30:00Z" o "+02:00" → ok
+  //  - ISO sin zona:      "2025-10-05T12:30:00"            → ok (local)
+  //  - Espacio en medio:  "2025-10-05 12:30:00"            → lo convertimos a Date local
+  const parseDBDate = (v) => {
+    if (!v) return null;
+    if (v instanceof Date) return v;
+
+    if (typeof v === 'string') {
+      // Si ya tiene "T", que lo parsee el motor (maneja Z o +/-hh:mm)
+      if (/\dT\d/.test(v)) return new Date(v);
+
+      // Formato "YYYY-MM-DD HH:mm(:ss)?"
+      const m = v.match(
+        /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/
+      );
+      if (m) {
+        const [, Y, M, D, h, mi, s = '00'] = m;
+        return new Date(
+          Number(Y),
+          Number(M) - 1,
+          Number(D),
+          Number(h),
+          Number(mi),
+          Number(s)
+        ); // ← siempre local, consistente en iOS/Android
+      }
+
+      // Último intento: cambia espacio por T
+      return new Date(v.replace(' ', 'T'));
+    }
+    return null;
+  };
+
+
   // 1) Cargar reservas existentes
   useEffect(() => {
     supabase
@@ -52,10 +87,10 @@ export default function ReservaCalendar({
   const events = [
     blockEarlyToday,
     ...reservedSlots.map((slot) => ({
-      start: slot.inicio,
-      end: slot.fin,
+      start: parseDBDate(slot.inicio),
+      end: parseDBDate(slot.fin),
       display: 'background',
-      backgroundColor: '#fecaca', // rojo suave
+      backgroundColor: '#fecaca',
       overlap: false,
       classNames: ['!bg-red-300/50', 'backdrop-blur-[1px]'],
     })),
@@ -85,10 +120,13 @@ export default function ReservaCalendar({
     if (info.start < minSelectableDate || info.end < minSelectableDate) return false;
 
     for (let slot of reservedSlots) {
-      const startRes = new Date(slot.inicio);
-      const endRes = new Date(slot.fin);
-      if (info.start < endRes && info.end > startRes) return false;
+      const startRes = parseDBDate(slot.inicio);
+      const endRes = parseDBDate(slot.fin);
+      if (startRes && endRes) {
+        if (info.start < endRes && info.end > startRes) return false;
+      }
     }
+
 
     const mine = selectedSlots.filter((s) => s.salaId === salaId);
     for (let slot of mine) {
@@ -177,26 +215,37 @@ export default function ReservaCalendar({
           ]}
           navLinkClassNames={() => ['underline', 'text-orange-700', 'hover:text-orange-800']}
           /* Encabezados y rejilla */
-          dayHeaderClassNames={() => [
-            'bg-orange-50',
-            'border-b',
-            'border-orange-200',
-            'text-xs',
-            'sm:text-sm',
-            'sm:font-medium',
-            'whitespace-nowrap',
-            'px-2',
-            'py-1.5',
-            'text-orange-900',
-          ]}
+          dayHeaderClassNames={(arg) => {
+            const cls = [
+              'border-b', 'border-orange-200', 'text-xs', 'sm:text-sm', 'sm:font-medium',
+              'whitespace-nowrap', 'px-2', 'py-1.5', 'text-orange-900'
+            ];
+            const dow = arg.date.getDay();
+            if (dow === 0 || dow === 6) cls.unshift('bg-yellow-100'); // encabezado pastel
+            else cls.unshift('bg-orange-50');
+            return cls;
+          }}
+
           dayHeaderContentClassNames={() => ['flex', 'justify-center', 'items-center', 'text-xs', 'sm:text-base']}
           slotLabelClassNames={() => ['text-zinc-500', 'text-[10px]', 'sm:text-[12px]', 'pr-1']}
           slotLaneClassNames={() => ['!border-l', '!border-orange-100']}
-          dayCellClassNames={(arg) => [
-            '!border',
-            '!border-orange-100',
-            arg.isToday ? 'bg-orange-50/60' : '',
-          ]}
+          dayCellClassNames={(arg) => {
+            const cls = ['!border', '!border-orange-100'];
+            const dow = arg.date.getDay(); // 0=Dom,6=Sáb
+
+            // Fondo amarillo pastel para sáb/dom
+            if (dow === 0 || dow === 6) cls.push('bg-yellow-100/60');
+
+            // “Hoy” en naranja claro (prioridad sobre el amarillo)
+            if (arg.isToday) {
+              // quitamos el amarillo si hoy cae en fin de semana
+              const i = cls.indexOf('bg-yellow-100/60');
+              if (i !== -1) cls.splice(i, 1);
+              cls.push('bg-orange-50/60');
+            }
+            return cls;
+          }}
+
           /* Clase base de eventos: colores por sala para tus selecciones */
           eventClassNames={(arg) => {
             const isMine = arg.event.extendedProps?.userSelected;
