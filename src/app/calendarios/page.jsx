@@ -8,41 +8,21 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import { supabase } from '@/lib/supabaseClient';
-
-// Acepta:
-//  - ISO con T y zona: "2025-10-05T12:30:00Z" o "+02:00" → ok
-//  - ISO sin zona:      "2025-10-05T12:30:00"            → ok (local)
-//  - Espacio en medio:  "2025-10-05 12:30:00"            → lo convertimos a Date local
+// Parser robusto: convierte "YYYY-MM-DD HH:mm:ss" a Date local (Android/iOS OK)
 const parseDBDate = (v) => {
   if (!v) return null;
   if (v instanceof Date) return v;
-
   if (typeof v === 'string') {
-    // Si ya tiene "T", que lo parsee el motor (maneja Z o +/-hh:mm)
-    if (/\dT\d/.test(v)) return new Date(v);
-
-    // Formato "YYYY-MM-DD HH:mm(:ss)?"
-    const m = v.match(
-      /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/
-    );
+    if (/\dT\d/.test(v)) return new Date(v); // ya ISO
+    const m = v.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/);
     if (m) {
       const [, Y, M, D, h, mi, s = '00'] = m;
-      return new Date(
-        Number(Y),
-        Number(M) - 1,
-        Number(D),
-        Number(h),
-        Number(mi),
-        Number(s)
-      ); // ← siempre local, consistente en iOS/Android
+      return new Date(+Y, +M - 1, +D, +h, +mi, +s);
     }
-
-    // Último intento: cambia espacio por T
     return new Date(v.replace(' ', 'T'));
   }
   return null;
 };
-
 
 export default function Page() {
   return (
@@ -113,69 +93,44 @@ export default function Page() {
    - Si coinciden, FullCalendar los coloca en columnas (mitad del ancho)
    - Fondo gris para horas pasadas del día actual
 ────────────────────────────────────────────────────────────── */
-const mapped = (data ?? []).map((slot) => {
-  const isSala1 = slot.sala_id === 1;
-  return {
-    title: isSala1 ? 'Sala 1' : 'Sala 2',
-    start: parseDBDate(slot.inicio),
-    end: parseDBDate(slot.fin),
-    overlap: true,
-    backgroundColor: isSala1 ? '#3b82f6' : '#22c55e',
-    borderColor: isSala1 ? '#1d4ed8' : '#15803d',
-    textColor: '#ffffff',
-    extendedProps: { salaId: slot.sala_id },
-    classNames: ['rounded-md', 'shadow-md'],
-  };
-});
-
 function CombinedCalendar() {
-  
   const calendarRef = useRef(null);
   const [events, setEvents] = useState([]);
 
   const todayStr = new Date().toISOString().split('T')[0];
 
 
-  useEffect(() => {
-    let alive = true;
-
-    supabase
+useEffect(() => {
+  let alive = true;
+  (async () => {
+    const { data: rows, error } = await supabase
       .from('tramos_reservados')
       .select('inicio, fin, sala_id')
-      .in('sala_id', [1, 2])
-      .then(({ data, error }) => {
-        if (!alive) return;
-        if (error) {
-          console.error('Error cargando reservas:', error);
-          return;
-        }
+      .in('sala_id', [1, 2]);
 
-        const mapped = (data ?? []).map((slot) => {
-          const isSala1 = slot.sala_id === 1;
+    if (!alive) return;
+    if (error) { console.error(error); return; }
 
-          // Usamos eventos "normales" (no background) para que al coincidir se
-          // repartan el ancho automáticamente (50/50 cuando hay 2 solapados).
-          return {
-            title: isSala1 ? 'Sala 1' : 'Sala 2',
-            start: slot.inicio,
-            end: slot.fin,
-            overlap: true, // permitir solaparse
-            // Quitamos color base del contenedor y pintamos con un gradiente dentro
-            backgroundColor: 'transparent',
-            borderColor: 'transparent',
-            textColor: '#ffffff',
-            extendedProps: { salaId: slot.sala_id },
-            classNames: ['rounded-md', 'shadow-md'],
-          };
-        });
+    const mapped = (rows ?? []).map((slot) => {
+      const isSala1 = slot.sala_id === 1;
+      return {
+        title: isSala1 ? 'Sala 1' : 'Sala 2',
+        start: parseDBDate(slot.inicio),
+        end: parseDBDate(slot.fin),
+        overlap: true,
+        backgroundColor: isSala1 ? '#3b82f6' : '#22c55e',
+        borderColor: isSala1 ? '#1d4ed8' : '#15803d',
+        textColor: '#ffffff',
+        extendedProps: { salaId: slot.sala_id },
+        classNames: ['rounded-md', 'shadow-md'],
+      };
+    });
 
-        setEvents([...mapped]);
-      });
+    setEvents(mapped);
+  })();
+  return () => { alive = false; };
+}, []);
 
-    return () => {
-      alive = false;
-    };
-  }, []);
 
   const handleDateClick = (arg) => {
     const api = calendarRef.current?.getApi();

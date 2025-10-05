@@ -6,6 +6,21 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import { supabase } from '@/lib/supabaseClient';
+// Parser robusto: convierte "YYYY-MM-DD HH:mm:ss" a Date local (Android/iOS OK)
+const parseDBDate = (v) => {
+  if (!v) return null;
+  if (v instanceof Date) return v;
+  if (typeof v === 'string') {
+    if (/\dT\d/.test(v)) return new Date(v); // ya ISO
+    const m = v.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/);
+    if (m) {
+      const [, Y, M, D, h, mi, s = '00'] = m;
+      return new Date(+Y, +M - 1, +D, +h, +mi, +s);
+    }
+    return new Date(v.replace(' ', 'T'));
+  }
+  return null;
+};
 
 export default function ReservaCalendar({
   salaId,
@@ -13,6 +28,7 @@ export default function ReservaCalendar({
   onDateSelect,
   onRemoveSlot,
 }) {
+
   const calendarRef = useRef(null);
   const [reservedSlots, setReservedSlots] = useState([]);
   const todayStr = new Date().toISOString().split('T')[0];
@@ -54,15 +70,17 @@ export default function ReservaCalendar({
 
   // 1) Cargar reservas existentes
   useEffect(() => {
-    supabase
-      .from('tramos_reservados')
-      .select('inicio, fin')
-      .eq('sala_id', salaId)
-      .then(({ data, error }) => {
-        if (error) console.error('Error fetching reserved slots:', error);
-        else setReservedSlots(data ?? []);
-      });
+    (async () => {
+      const { data: rows, error } = await supabase
+        .from('tramos_reservados')
+        .select('inicio, fin')
+        .eq('sala_id', salaId);
+
+      if (error) { console.error(error); return; }
+      setReservedSlots(rows ?? []);
+    })();
   }, [salaId]);
+
 
   // 2) Mínimo seleccionable: ahora
   const minSelectableDate = new Date(Date.now());
@@ -94,6 +112,7 @@ export default function ReservaCalendar({
       overlap: false,
       classNames: ['!bg-red-300/50', 'backdrop-blur-[1px]'],
     })),
+
     ...selectedSlots
       .filter((s) => s.salaId === salaId)
       .map((slot) => ({
@@ -126,6 +145,7 @@ export default function ReservaCalendar({
         if (info.start < endRes && info.end > startRes) return false;
       }
     }
+
 
 
     const mine = selectedSlots.filter((s) => s.salaId === salaId);
