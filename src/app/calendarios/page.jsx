@@ -1,13 +1,16 @@
-// app/disponibilidad/page.jsx
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import Link from 'next/link';
-import FullCalendar from '@fullcalendar/react';
+import dynamic from 'next/dynamic';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import { supabase } from '@/lib/supabaseClient';
+
+// Cargar FullCalendar sin SSR (clave para evitar problemas en móvil/hidratación)
+const FullCalendar = dynamic(() => import('@fullcalendar/react'), { ssr: false });
+
 // Parser robusto: convierte "YYYY-MM-DD HH:mm:ss" a Date local (Android/iOS OK)
 const parseDBDate = (v) => {
   if (!v) return null;
@@ -91,51 +94,73 @@ export default function Page() {
    Calendario fusionado (solo lectura)
    - Sala 1 → azul vibrante | Sala 2 → verde vibrante
    - Si coinciden, FullCalendar los coloca en columnas (mitad del ancho)
-   - Fondo gris para horas pasadas del día actual
+   - Fondo amarillo para fin de semana, naranja suave para "hoy"
+   - Fixes de móvil: import dinámico, expandRows, height auto, timeZone
 ────────────────────────────────────────────────────────────── */
 function CombinedCalendar() {
   const calendarRef = useRef(null);
   const [events, setEvents] = useState([]);
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const isClient = typeof window !== 'undefined';
+  const isMobile = isClient ? window.innerWidth < 640 : false;
 
+  const todayStr = useMemo(
+    () => new Date().toISOString().split('T')[0],
+    []
+  );
 
-useEffect(() => {
-  let alive = true;
-  (async () => {
-    const { data: rows, error } = await supabase
-      .from('tramos_reservados')
-      .select('inicio, fin, sala_id')
-      .in('sala_id', [1, 2]);
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const { data: rows, error } = await supabase
+        .from('tramos_reservados')
+        .select('inicio, fin, sala_id')
+        .in('sala_id', [1, 2]);
 
-    if (!alive) return;
-    if (error) { console.error(error); return; }
+      if (!alive) return;
+      if (error) {
+        console.error(error);
+        return;
+      }
 
-    const mapped = (rows ?? []).map((slot) => {
-      const isSala1 = slot.sala_id === 1;
-      return {
-        title: isSala1 ? 'Sala 1' : 'Sala 2',
-        start: parseDBDate(slot.inicio),
-        end: parseDBDate(slot.fin),
-        overlap: true,
-        backgroundColor: isSala1 ? '#3b82f6' : '#22c55e',
-        borderColor: isSala1 ? '#1d4ed8' : '#15803d',
-        textColor: '#ffffff',
-        extendedProps: { salaId: slot.sala_id },
-        classNames: ['rounded-md', 'shadow-md'],
-      };
-    });
+      const mapped = (rows ?? [])
+        .map((slot) => {
+          const start = parseDBDate(slot.inicio);
+          const end = parseDBDate(slot.fin);
+          if (!start || !end) return null; // evita eventos inválidos en Safari
 
-    setEvents(mapped);
-  })();
-  return () => { alive = false; };
-}, []);
+          const isSala1 = slot.sala_id === 1;
+          return {
+            title: isSala1 ? 'Sala 1' : 'Sala 2',
+            start,
+            end,
+            overlap: true,
+            backgroundColor: isSala1 ? '#3b82f6' : '#22c55e',
+            borderColor: isSala1 ? '#1d4ed8' : '#15803d',
+            textColor: '#ffffff',
+            extendedProps: { salaId: slot.sala_id },
+            classNames: ['rounded-md', 'shadow-md'],
+          };
+        })
+        .filter(Boolean);
 
+      setEvents(mapped);
+    })();
+    return () => { alive = false; };
+  }, []);
 
   const handleDateClick = (arg) => {
     const api = calendarRef.current?.getApi();
     if (api?.view?.type === 'dayGridMonth') api.changeView('timeGridDay', arg.date);
   };
+
+  const headerToolbar = useMemo(() => ({
+    left: 'prev,next today',
+    center: 'title',
+    right: isMobile
+      ? 'dayGridMonth,timeGridDay'
+      : 'dayGridMonth,timeGridCustom,timeGridDay',
+  }), [isMobile]);
 
   return (
     <div className="overflow-x-auto rounded-xl border border-orange-100 bg-white">
@@ -148,17 +173,17 @@ useEffect(() => {
             timeGridCustom: { type: 'timeGrid', duration: { days: 7 }, buttonText: 'Semana' },
             timeGridDay: { type: 'timeGrid', buttonText: 'Día' },
           }}
-          initialView="timeGridCustom"
+          initialView={isMobile ? 'timeGridDay' : 'timeGridCustom'}
           initialDate={todayStr}
-          headerToolbar={{
-            left: 'prev,next today',
-            center: 'title',
-            right: 'dayGridMonth,timeGridCustom',
-          }}
+          headerToolbar={headerToolbar}
           buttonText={{ today: 'Hoy', dayGridMonth: 'Mes', timeGridCustom: 'Semana', timeGridDay: 'Día' }}
           locale="es"
           navLinks
           dateClick={handleDateClick}
+          timeZone="Europe/Madrid"
+          nowIndicator
+
+          /* Slots / labels */
           slotMinTime="07:00:00"
           slotMaxTime="23:00:00"
           slotDuration="00:30:00"
@@ -166,13 +191,18 @@ useEffect(() => {
           slotLabelFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }}
           dayHeaderFormat={{ weekday: 'short', day: 'numeric' }}
           allDaySlot={false}
-          selectable={false}
-          nowIndicator
+
+          /* Importante para móvil */
+          height="auto"
+          expandRows
+
+          /* Eventos */
           events={events}
-          eventOverlap // aseguramos el solapamiento
+          eventOverlap
           eventMinHeight={22}
           eventOrder="extendedProps.salaId,start"
-          height="auto"
+
+          /* Clases/estilos */
           className="fc-container"
           contentClassNames={['fc-content']}
           viewClassNames={['fc-view']}
@@ -211,7 +241,7 @@ useEffect(() => {
             // Fondo amarillo pastel para sáb/dom
             if (dow === 0 || dow === 6) cls.push('bg-yellow-100/60');
 
-            // “Hoy” mantiene su estilo por encima del amarillo, si lo quieres:
+            // “Hoy” por encima del amarillo
             if (arg.isToday) {
               const i = cls.indexOf('bg-yellow-100/60');
               if (i !== -1) cls.splice(i, 1);
@@ -231,20 +261,18 @@ useEffect(() => {
               <div className="relative h-full w-full">
                 {/* Capa de color vibrante */}
                 <div
-                  className={`absolute inset-0 rounded-md ring-1 ${isSala1
+                  className={`absolute inset-0 rounded-md ring-1 ${
+                    isSala1
                       ? 'bg-gradient-to-br from-blue-500 to-blue-600 ring-blue-700'
                       : 'bg-gradient-to-br from-green-500 to-green-600 ring-green-700'
-                    }`}
+                  }`}
                 />
                 {/* Contenido */}
                 <div className="relative z-10 px-1.5 py-1 text-[11px] leading-4 text-white">
                   <div className="flex items-center gap-1.5">
                     <span className="font-bold">{arg.timeText}</span>
                     <span
-                      className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ring-1 ${isSala1
-                          ? 'bg-white/15 ring-white/30'
-                          : 'bg-white/15 ring-white/30'
-                        }`}
+                      className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold ring-1 bg-white/15 ring-white/30"
                     >
                       {isSala1 ? 'Sala 1' : 'Sala 2'}
                     </span>

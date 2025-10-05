@@ -14,4 +14,16 @@ body {
 
 h1, h2{
   font-family: 'Times New Roman', Times, serif;
-}
+}/* === FullCalendar v6 CSS === */
+@import "@fullcalendar/common/main.css";
+@import "@fullcalendar/timegrid/main.css";
+@import "@fullcalendar/daygrid/main.css";
+/* @import "@fullcalendar/list/main.css";  (si usas vista list) */
+
+/* Tailwind (si procede) */
+
+@tailwind utilities;
+
+/* Alturas seguras para móvil */
+html, body { height: 100%; }
+.fc, .fc .fc-scroller-harness, .fc .fc-scroller { overflow: visible; }
